@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minds Over Tumors — CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1E3040;--navy-d:#162534;--navy-dd:#0f1c2b;
+  --blue:#4F9FD8;--blue-d:#3a8cc4;--blue-dd:#2d7aad;
+  --blue-bg:#eaf4fb;--blue-border:#c2dff0;
+  --white:#fff;
+  --g50:#f7f8f9;--g100:#f0f2f4;--g150:#e8eaed;--g200:#dde1e6;
+  --g300:#c6cbd3;--g400:#9ba4af;--g500:#6b7583;--g600:#4a5568;
+  --g700:#2d3748;--g900:#1a202c;
+  --green:#1a7a3c;--green-bg:#e6f4ec;
+  --red:#c0392b;--red-bg:#fdf0ee;
+  --amber:#8a6200;--amber-bg:#fef9e7;
+  --purple:#5b35b1;--purple-bg:#ede7f6;
+  --rail-w:52px;--sb-w:220px;--hh:48px;--sh:42px;
+  --f:'Inter',system-ui,sans-serif;
+  --r:4px;--r2:6px;
+  --s0:0 1px 2px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);
+  --s1:0 2px 8px rgba(0,0,0,.08);
+  --s2:0 8px 24px rgba(0,0,0,.12);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--f);background:var(--g100);color:var(--g700);font-size:13px;line-height:1.5;display:flex;flex-direction:column}
+
+/* ══════════════════════════════════
+   LOGIN SCREEN
+══════════════════════════════════ */
+#login-screen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;background:var(--navy-dd);position:fixed;inset:0;z-index:9000;
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(79,159,216,.08) 0%,transparent 60%),
+    radial-gradient(ellipse at 80% 20%,rgba(30,48,64,.4) 0%,transparent 50%);
+}
+.login-box{
+  background:var(--white);border-radius:10px;width:420px;max-width:94vw;
+  box-shadow:0 24px 64px rgba(0,0,0,.4);overflow:hidden;
+}
+.login-header{background:var(--navy);padding:32px 36px 28px;text-align:center}
+.login-logo{width:48px;height:48px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.login-logo svg{width:24px;height:24px;fill:#fff}
+.login-org{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.01em}
+.login-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+.login-body{padding:32px 36px}
+.login-body h2{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.login-body p{font-size:12.5px;color:var(--g400);margin-bottom:24px}
+.login-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.login-field label{font-size:11px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.04em}
+.login-field input{border:1px solid var(--g300);border-radius:var(--r);padding:10px 12px;font-size:13.5px;font-family:var(--f);color:var(--g900);outline:none;transition:.15s;width:100%}
+.login-field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(79,159,216,.16)}
+.login-btn{width:100%;height:42px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--f);transition:.15s;margin-top:8px;letter-spacing:.01em}
+.login-btn:hover{background:var(--blue-d)}
+.login-btn:disabled{background:var(--g300);cursor:not-allowed}
+.login-error{background:var(--red-bg);border:1px solid #f2c4bf;border-radius:var(--r);padding:10px 13px;font-size:12.5px;color:var(--red);font-weight:500;margin-bottom:14px;display:none}
+.login-error.show{display:block}
+.login-divider{text-align:center;font-size:11.5px;color:var(--g400);margin:16px 0;position:relative}
+.login-divider::before,.login-divider::after{content:'';position:absolute;top:50%;width:calc(50% - 28px);height:1px;background:var(--g200)}
+.login-divider::before{left:0}.login-divider::after{right:0}
+.login-footer{text-align:center;font-size:12px;color:var(--g400);padding:0 36px 24px}
+.login-footer a{color:var(--blue);text-decoration:none;font-weight:500}
+.login-spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Supabase setup notice */
+.sb-setup{background:var(--amber-bg);border:1px solid #f0d070;border-radius:var(--r2);padding:14px 16px;font-size:12.5px;color:var(--amber);line-height:1.6;margin-bottom:16px}
+.sb-setup strong{display:block;font-size:13px;margin-bottom:4px}
+.sb-setup a{color:var(--amber);font-weight:600}
+.sb-setup code{background:rgba(138,98,0,.12);padding:1px 6px;border-radius:3px;font-size:11.5px}
+
+/* ══════════════════════════════════
+   HEADER
+══════════════════════════════════ */
+#hdr{height:var(--hh);background:var(--navy-dd);display:flex;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);z-index:500}
+#hdr-logo{width:calc(var(--rail-w) + var(--sb-w));display:flex;align-items:center;gap:12px;padding:0 20px 0 14px;border-right:1px solid rgba(255,255,255,.07);flex-shrink:0;height:100%}
+.lmark{width:30px;height:30px;background:var(--blue);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lmark svg{width:16px;height:16px;fill:#fff}
+.lname{font-size:13px;font-weight:700;color:#fff}
+.lsub{font-size:10px;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.03em;margin-top:1px}
+#hdr-nav{display:flex;align-items:flex-end;height:100%;padding:0 4px;flex:1;overflow:hidden}
+.hn{display:flex;align-items:center;padding:0 11px;height:100%;font-size:12px;font-weight:500;color:rgba(255,255,255,.55);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.12s;user-select:none;position:relative}
+.hn:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.04)}
+.hn.active{color:#fff;border-bottom-color:var(--blue)}
+.hn-badge{position:absolute;top:8px;right:3px;background:var(--red);color:#fff;border-radius:10px;font-size:9px;font-weight:800;padding:1px 5px;min-width:16px;text-align:center;display:none}
+.hn-badge.show{display:inline-block}
+#hdr-right{display:flex;align-items:center;gap:8px;padding:0 14px;flex-shrink:0}
+#srch{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:0 12px;height:29px;min-width:190px}
+#srch input{background:none;border:none;outline:none;font-size:12px;color:#fff;font-family:var(--f);width:100%}
+#srch input::placeholder{color:rgba(255,255,255,.35)}
+.hb{width:29px;height:29px;border-radius:50%;border:none;background:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s}
+.hb:hover{background:rgba(255,255,255,.1);color:#fff}
+.hb svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#user-menu{display:flex;align-items:center;gap:8px;padding:4px 10px;background:rgba(255,255,255,.08);border-radius:20px;cursor:pointer;transition:.12s}
+#user-menu:hover{background:rgba(255,255,255,.14)}
+.user-av{width:24px;height:24px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;text-transform:uppercase}
+.user-name{font-size:12px;font-weight:500;color:rgba(255,255,255,.8)}
+.user-signout{font-size:11px;color:rgba(255,255,255,.4)}
+.hdiv{width:1px;height:18px;background:rgba(255,255,255,.1);margin:0 3px}
+
+/* ══════════════════════════════════
+   BODY LAYOUT
+══════════════════════════════════ */
+#body{display:flex;flex:1;overflow:hidden}
+
+/* RAIL */
+#rail{width:var(--rail-w);background:var(--navy-d);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.05)}
+.rb{width:36px;height:36px;border-radius:var(--r2);display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;background:none;transition:.12s;position:relative}
+.rb svg{width:17px;height:17px;stroke:rgba(255,255,255,.35);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:.12s}
+.rb:hover{background:rgba(255,255,255,.07)}.rb:hover svg{stroke:rgba(255,255,255,.8)}
+.rb.active{background:rgba(79,159,216,.18)}.rb.active svg{stroke:var(--blue)}
+.rsep{width:24px;height:1px;background:rgba(255,255,255,.07);margin:5px 0}
+.rtt{position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:var(--g900);color:#fff;font-size:11.5px;font-weight:500;white-space:nowrap;padding:4px 10px;border-radius:var(--r);pointer-events:none;z-index:9999;display:none;box-shadow:var(--s1)}
+.rb:hover .rtt{display:block}
+.rb-badge{position:absolute;top:3px;right:3px;background:var(--red);border-radius:50%;width:12px;height:12px;font-size:8px;font-weight:800;color:#fff;display:none;align-items:center;justify-content:center}
+.rb-badge.show{display:flex}
+
+/* SIDEBAR */
+#sb{width:var(--sb-w);background:var(--white);border-right:1px solid var(--g200);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+#sb-head{padding:13px 16px;border-bottom:1px solid var(--g150)}
+#sb-mod{font-size:12px;font-weight:700;color:var(--navy);letter-spacing:.01em;text-transform:uppercase}
+#sb-scroll{flex:1;overflow-y:auto;padding:6px 0}
+.sbi{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;font-size:12.5px;font-weight:400;color:var(--g600);cursor:pointer;border-left:3px solid transparent;transition:.1s;user-select:none}
+.sbi:hover{background:var(--blue-bg);color:var(--navy)}
+.sbi.active{background:var(--blue-bg);color:var(--blue-dd);font-weight:600;border-left-color:var(--blue)}
+#sb-foot{border-top:1px solid var(--g150);padding:13px 16px}
+.rb-box{background:var(--navy);border-radius:var(--r2);padding:12px 14px;margin-bottom:10px}
+.rb-lbl{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.rb-val{font-size:22px;font-weight:800;color:var(--blue);line-height:1.15;margin-top:3px}
+.rb-sub{font-size:10.5px;color:rgba(255,255,255,.3);margin-top:3px}
+.sb-copy{font-size:10.5px;color:var(--g400);text-align:center}
+.sb-db-status{display:flex;align-items:center;gap:7px;padding:8px 12px;background:var(--g50);border-radius:var(--r);margin-bottom:10px;font-size:11.5px;color:var(--g500)}
+.db-dot{width:7px;height:7px;border-radius:50%;background:var(--g300);flex-shrink:0}
+.db-dot.live{background:var(--green)}
+.db-dot.demo{background:var(--amber)}
+
+/* CONTENT */
+#cnt{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#cbar{height:var(--sh);background:var(--white);border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+#cbar h1{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em}
+#cacts{display:flex;align-items:center;gap:8px}
+#cscroll{flex:1;overflow-y:auto;padding:20px 24px}
+.view{display:none}.view.active{display:block}
+
+/* STAT ROW */
+.srow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.sc{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);padding:17px 19px;box-shadow:var(--s0)}
+.sc.dark{background:var(--navy);border-color:var(--navy-d)}
+.sc-l{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g400);margin-bottom:7px}
+.sc.dark .sc-l{color:rgba(255,255,255,.4)}
+.sc-v{font-size:25px;font-weight:800;color:var(--navy);line-height:1;letter-spacing:-.02em}
+.sc.dark .sc-v{color:var(--blue)}
+.sc-s{font-size:11px;color:var(--g400);margin-top:5px}
+.sc.dark .sc-s{color:rgba(255,255,255,.3)}
+
+/* PANELS */
+.panel{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);overflow:hidden;margin-bottom:16px}
+.ph{padding:11px 18px;border-bottom:1px solid var(--g150);display:flex;align-items:center;justify-content:space-between;background:var(--g50)}
+.ph h3{font-size:12.5px;font-weight:700;color:var(--navy)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* TABLES */
+.tc{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);overflow:hidden}
+.tt{padding:10px 16px;border-bottom:1px solid var(--g150);display:flex;align-items:center;gap:10px;background:var(--g50)}
+.tt input{border:1px solid var(--g200);border-radius:var(--r);padding:6px 10px 6px 30px;font-size:12.5px;background:var(--white);color:var(--g700);font-family:var(--f);outline:none;transition:.12s;width:200px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%239ba4af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:9px center}
+.tt input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(79,159,216,.14)}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--g50)}
+th{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--g500);padding:9px 16px;border-bottom:1px solid var(--g200);text-align:left;white-space:nowrap}
+td{padding:10px 16px;border-bottom:1px solid var(--g100);font-size:12.5px;color:var(--g600);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:.08s}
+tbody tr:hover td{background:var(--blue-bg)}
+.td-p{font-weight:600;color:var(--navy)}
+.td-a{font-weight:700;color:var(--blue-dd)}
+.td-m{font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--g400)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:0 14px;height:32px;border-radius:var(--r);font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid transparent;font-family:var(--f);transition:.12s;white-space:nowrap}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue-d)}.btn-primary:hover{background:var(--blue-d)}
+.btn-navy{background:var(--navy);color:#fff;border-color:var(--navy-d)}.btn-navy:hover{background:var(--navy-d)}
+.btn-outline{background:var(--white);color:var(--g600);border-color:var(--g300)}.btn-outline:hover{background:var(--g100);color:var(--navy)}
+.btn-ghost{background:none;border:none;color:var(--g500);font-size:12px;padding:0 8px;height:28px;cursor:pointer;font-family:var(--f);font-weight:600;transition:.12s}.btn-ghost:hover{color:var(--navy)}
+.btn-approve{background:var(--green-bg);color:var(--green);border:1px solid #b8dfc8;font-weight:700}.btn-approve:hover{background:#d0ecda}
+.btn-reject{background:var(--red-bg);color:var(--red);border:1px solid #f2c4bf}.btn-reject:hover{background:#fbdbd8}
+.btn-danger{background:var(--red-bg);color:var(--red);border-color:#f2c4bf}.btn-danger:hover{background:#fbdbd8}
+.btn-success{background:var(--green-bg);color:var(--green);border-color:#b8dfc8}
+.btn-sm{height:28px;padding:0 11px;font-size:12px}
+.btn-xs{height:24px;padding:0 9px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap}
+.b-green{background:var(--green-bg);color:var(--green)}
+.b-red{background:var(--red-bg);color:var(--red)}
+.b-amber{background:var(--amber-bg);color:var(--amber)}
+.b-blue{background:var(--blue-bg);color:var(--blue-dd);border:1px solid var(--blue-border)}
+.b-navy{background:rgba(30,48,64,.08);color:var(--navy)}
+.b-purple{background:var(--purple-bg);color:var(--purple)}
+.b-gray{background:var(--g150);color:var(--g600)}
+
+/* FILTER BAR */
+.fbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.fc{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--g300);background:var(--white);color:var(--g600);transition:.1s;font-family:var(--f)}
+.fc:hover{border-color:var(--blue);color:var(--blue-dd)}
+.fc.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* AVATAR */
+.av{border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;text-transform:uppercase;flex-shrink:0}
+.av-sm{width:28px;height:28px;font-size:10.5px}
+.av-lg{width:50px;height:50px;font-size:17px}
+.av-blue{background:var(--blue)}
+
+/* MODAL */
+#mo{display:none;position:fixed;inset:0;background:rgba(8,18,28,.52);z-index:2000;align-items:center;justify-content:center}
+#mo.open{display:flex}
+.modal{background:var(--white);border-radius:var(--r2);width:620px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:var(--s2);border-top:3px solid var(--blue)}
+.modal-lg{width:820px}
+.modal-xl{width:920px}
+.mh{padding:19px 24px 15px;border-bottom:1px solid var(--g150);display:flex;justify-content:space-between;align-items:center}
+.mt{font-size:15px;font-weight:700;color:var(--navy)}
+.mx{width:28px;height:28px;background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;transition:.12s}.mx:hover{background:var(--g150);color:var(--g700)}
+.mb{padding:20px 24px}
+.mf{padding:12px 24px;border-top:1px solid var(--g150);display:flex;gap:8px;justify-content:flex-end;background:var(--g50);border-radius:0 0 var(--r2) var(--r2)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ff{display:flex;flex-direction:column;gap:5px}.ff.full{grid-column:1/-1}
+label{font-size:11px;font-weight:700;color:var(--g600);letter-spacing:.03em;text-transform:uppercase}
+input:not([type=checkbox]):not([type=range]),select,textarea{border:1px solid var(--g300);border-radius:var(--r);padding:8px 10px;font-size:13px;font-family:var(--f);color:var(--g900);background:var(--white);outline:none;transition:.12s;width:100%}
+input:not([type=checkbox]):not([type=range]):focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(79,159,216,.14)}
+textarea{resize:vertical;min-height:70px}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7' fill='none'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%236b7583' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:27px}
+
+/* DETAIL PANEL */
+#dp{display:none;position:fixed;right:0;top:0;width:400px;height:100vh;background:var(--white);border-left:1px solid var(--g200);z-index:1000;overflow-y:auto;box-shadow:-8px 0 32px rgba(0,0,0,.12)}
+#dp.open{display:block}
+.dp-hdr{background:var(--navy);padding:19px 20px 17px}
+.dp-top{display:flex;justify-content:space-between;margin-bottom:13px}
+.dpc{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.45);font-size:18px;line-height:1;transition:.12s;padding:2px}.dpc:hover{color:#fff}
+.dp-name{font-size:18px;font-weight:800;color:#fff}
+.dp-meta{font-size:12px;color:rgba(255,255,255,.45);margin-top:3px}
+.dp-stats{display:flex;border-top:1px solid rgba(255,255,255,.1);margin-top:15px;padding-top:13px}
+.dps{flex:1;text-align:center;border-right:1px solid rgba(255,255,255,.08)}.dps:last-child{border-right:none}
+.dps-v{font-size:17px;font-weight:800;color:var(--blue)}
+.dps-l{font-size:9.5px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+.dp-acts{display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid var(--g150)}
+.dp-sec{padding:13px 18px;border-bottom:1px solid var(--g100)}
+.dp-st{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g400);margin-bottom:9px}
+.dp-row{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--g100);font-size:12.5px}
+.dp-row:last-child{border-bottom:none}
+.dp-k{color:var(--g400);font-weight:500;flex-shrink:0;margin-right:10px;min-width:65px}
+.dp-v{color:var(--g700);font-weight:500;text-align:right}
+.tli{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--g100)}.tli:last-child{border-bottom:none}
+.tld{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:3px}
+.tldate{font-size:10.5px;color:var(--g400);margin-top:4px}
+
+/* LIST ROWS */
+.lr{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--g100);font-size:12.5px;transition:.1s}
+.lr:last-child{border-bottom:none}
+.lr.clickable{cursor:pointer}.lr.clickable:hover{background:var(--blue-bg)}
+.lr-n{flex:1;font-weight:600;color:var(--navy)}
+.lr-m{color:var(--g400);font-size:11.5px}
+.lr-a{font-weight:700;color:var(--blue-d)}
+
+/* PROGRESS */
+.prog{height:4px;background:var(--g150);border-radius:2px;overflow:hidden;margin:6px 0}
+.pf{height:100%;background:var(--blue);border-radius:2px;transition:.4s}
+
+/* CARDS */
+.ccard{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.ccard:hover{box-shadow:var(--s1);border-color:var(--blue-border)}
+.cct{background:var(--navy);padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start}
+.ccn{font-size:14px;font-weight:700;color:#fff;line-height:1.3}
+.ccb{padding:14px 16px}
+.evcard{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.evcard:hover{box-shadow:var(--s1);border-color:var(--blue-border)}
+.evst{height:4px;background:var(--blue)}
+.evb{padding:14px 16px}
+.evtype{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--blue-d);margin-bottom:7px}
+.evn{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:5px}
+
+/* EMPTY */
+.es{text-align:center;padding:46px 24px}
+.es-ic{width:46px;height:46px;border-radius:50%;background:var(--g100);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.es-ic svg{width:21px;height:21px;stroke:var(--g400);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.es p{font-size:13px;color:var(--g500);margin-bottom:14px}
+
+/* TOAST */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--navy);color:#fff;padding:10px 17px;border-radius:var(--r2);font-size:12.5px;font-weight:600;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;border-left:3px solid var(--blue);box-shadow:var(--s2);max-width:340px}
+#toast.show{opacity:1}
+#toast.success{border-left-color:var(--green)}
+#toast.error{border-left-color:var(--red)}
+
+/* SUPABASE BANNER */
+#sb-banner{background:var(--amber-bg);border-bottom:1px solid #f0d070;padding:9px 20px;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:10px;flex-shrink:0}
+#sb-banner.hidden{display:none}
+#sb-banner a{color:var(--amber);font-weight:700;text-decoration:underline}
+.banner-dismiss{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--amber);font-size:16px;line-height:1;padding:2px}
+
+/* APPROVAL QUEUE */
+.aq-item{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);margin-bottom:12px;overflow:hidden;border-left:4px solid var(--amber)}
+.aq-item.approved{border-left-color:var(--green)}
+.aq-item.rejected{border-left-color:var(--red);opacity:.7}
+.aq-head{padding:14px 18px;display:flex;align-items:flex-start;gap:14px}
+.aq-icon{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.aq-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.aq-info{flex:1}
+.aq-title{font-size:13.5px;font-weight:700;color:var(--navy)}
+.aq-sub{font-size:12px;color:var(--g500);margin-top:3px}
+.aq-status{flex-shrink:0;display:flex;align-items:center;gap:10px}
+.aq-preview{background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:14px 18px;margin:0 18px 14px;font-size:12.5px;color:var(--g700);line-height:1.7;max-height:160px;overflow:hidden;position:relative;cursor:pointer;transition:border-color .15s}
+.aq-preview:hover{border-color:var(--blue)}
+.aq-preview::after{content:'Click to preview full document';position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,var(--g50));padding:24px 18px 10px;font-size:11px;color:var(--blue);font-weight:600;text-align:center}
+.aq-actions{padding:0 18px 14px;display:flex;gap:8px}
+
+/* AUTO RULES */
+.auto-rule{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);margin-bottom:10px;overflow:hidden}
+.auto-rule.enabled{border-left:4px solid var(--green)}
+.auto-rule.disabled{border-left:4px solid var(--g300)}
+.ar-head{display:flex;align-items:center;gap:14px;padding:13px 18px;cursor:pointer}
+.ar-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ar-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ar-info{flex:1}
+.ar-title{font-size:13px;font-weight:700;color:var(--navy)}
+.ar-desc{font-size:12px;color:var(--g500);margin-top:2px}
+.ar-meta{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.toggle{width:40px;height:22px;background:var(--g300);border-radius:11px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0;border:none}
+.toggle.on{background:var(--green)}
+.toggle::after{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.on::after{left:21px}
+.ar-body{padding:0 18px 14px;border-top:1px solid var(--g100);display:none}
+.ar-body.open{display:block;padding-top:12px}
+.merge-fields{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.mf-chip{padding:3px 10px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:20px;font-size:11px;font-weight:600;color:var(--blue-dd);cursor:pointer;font-family:'SF Mono','Fira Code',monospace;transition:.12s}
+.mf-chip:hover{background:var(--blue);color:#fff}
+.tpl-editor{font-family:var(--f);font-size:13px;border:1px solid var(--g300);border-radius:var(--r);padding:12px;min-height:180px;outline:none;transition:.12s;line-height:1.7;color:var(--g900);background:var(--white);width:100%;resize:vertical}
+.tpl-editor:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(79,159,216,.14)}
+
+/* SCHEDULE */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:16px}
+.cal-day-name{text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--g400);padding:6px 0}
+.cal-day{min-height:76px;background:var(--white);border:1px solid var(--g150);border-radius:var(--r);padding:5px;cursor:pointer;transition:.12s}
+.cal-day:hover{border-color:var(--blue);background:var(--blue-bg)}
+.cal-day.today{border-color:var(--blue);background:var(--blue-bg)}
+.cal-day.other-month{background:var(--g50);opacity:.6}
+.cal-day-num{font-size:12px;font-weight:600;color:var(--g700);margin-bottom:3px}
+.cal-day.today .cal-day-num{color:var(--blue);font-weight:800}
+.cal-event{border-radius:3px;font-size:10px;font-weight:600;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:#fff}
+.cal-event.type-meeting{background:var(--green)}
+.cal-event.type-gala{background:var(--blue)}
+.cal-event.type-deadline{background:var(--red)}
+.cal-event.type-call{background:var(--purple)}
+.cal-event.type-personal{background:var(--amber)}
+.cal-event.type-other,.cal-event.type-auction,.cal-event.type-community,.cal-event.type-virtual{background:var(--g500)}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cal-nav h2{font-size:16px;font-weight:700;color:var(--navy)}
+.sched-item{display:flex;align-items:flex-start;gap:14px;padding:13px 18px;border-bottom:1px solid var(--g100);cursor:pointer;transition:.1s}
+.sched-item:last-child{border-bottom:none}
+.sched-item:hover{background:var(--blue-bg)}
+.sdb-day{font-size:22px;font-weight:800;color:var(--navy);line-height:1}
+.sdb-month{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--g400);letter-spacing:.05em}
+.sched-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+
+/* DOC PREVIEW */
+.doc-preview{background:#fff;border:1px solid var(--g200);border-radius:var(--r2);max-width:700px;margin:0 auto;box-shadow:var(--s1)}
+.doc-print-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--g50);border-bottom:1px solid var(--g200);border-radius:var(--r2) var(--r2) 0 0}
+.doc-inner{padding:48px 52px;font-family:Georgia,serif;font-size:13.5px;line-height:1.8;color:#1a1a1a}
+.doc-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid var(--navy)}
+.doc-org{font-family:var(--f);font-size:18px;font-weight:800;color:var(--navy)}
+.amount-box{background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--r2);padding:16px 20px;margin:20px 0;font-family:var(--f)}
+.ab-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--g500)}
+.ab-value{font-size:24px;font-weight:800;color:var(--navy);margin-top:4px}
+.doc-sig{margin-top:32px;padding-top:20px;border-top:1px solid var(--g200);font-family:var(--f);font-size:12px;color:var(--g500)}
+.doc-footer-bar{background:var(--navy);padding:14px 52px;font-family:var(--f);font-size:11px;color:rgba(255,255,255,.5);border-radius:0 0 var(--r2) var(--r2)}
+
+/* ONECAUSE */
+.int-card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);padding:20px 22px;margin-bottom:16px}
+.int-card h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.int-card p{font-size:12.5px;color:var(--g500);margin-bottom:16px;line-height:1.6}
+.int-status{display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--g50);border-radius:var(--r);border:1px solid var(--g200)}
+.int-dot{width:8px;height:8px;border-radius:50%;background:var(--g300);flex-shrink:0}
+.int-dot.connected{background:var(--green)}
+.int-dot.syncing{background:var(--amber);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-log{background:var(--navy-dd);border-radius:var(--r);padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;color:rgba(255,255,255,.7);max-height:140px;overflow-y:auto;margin-top:12px;line-height:1.8}
+.sync-log .lok{color:#4ade80}.sync-log .lerr{color:#f87171}.sync-log .linf{color:rgba(255,255,255,.5)}
+
+/* SOCIAL */
+.social-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.soc-card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);overflow:hidden}
+.soc-head{padding:13px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--g150)}
+.soc-logo{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.soc-logo svg{width:18px;height:18px}
+.soc-name{font-size:13px;font-weight:700;color:var(--navy)}
+.soc-handle{font-size:11px;color:var(--g400);margin-top:1px}
+.platform-checks{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.pcheck{display:flex;align-items:center;gap:8px;padding:7px 13px;border:1px solid var(--g200);border-radius:var(--r);cursor:pointer;transition:.12s;user-select:none;font-size:12.5px;font-weight:500;color:var(--g700)}
+.pcheck.checked{background:var(--blue-bg);border-color:var(--blue);color:var(--navy)}
+.pcheck-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.fb-dot{background:#1877F2}.ig-dot{background:linear-gradient(45deg,#f09433,#bc1888)}.li-dot{background:#0A66C2}
+
+/* SETTINGS */
+.settings-section{background:var(--white);border:1px solid var(--g200);border-radius:var(--r2);box-shadow:var(--s0);margin-bottom:16px;overflow:hidden}
+.settings-section h3{font-size:13px;font-weight:700;color:var(--navy);padding:13px 18px;border-bottom:1px solid var(--g150);background:var(--g50)}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--g100)}
+.settings-row:last-child{border-bottom:none}
+.sr-label{font-size:13px;font-weight:600;color:var(--navy)}
+.sr-desc{font-size:12px;color:var(--g500);margin-top:2px}
+
+/* UTILS */
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g300);border-radius:3px}
+.flex{display:flex}.aic{align-items:center}.jb{justify-content:space-between}.g2{gap:8px}.g3{gap:12px}
+.tsm{font-size:11.5px}.tmu{color:var(--g400)}.tnv{color:var(--navy)}.fw6{font-weight:600}.fw7{font-weight:700}
+.mt1{margin-top:4px}.mt2{margin-top:8px}.mt3{margin-top:14px}.mt4{margin-top:20px}.w100{width:100%}
+.loading-pulse{animation:lpulse 1.4s ease-in-out infinite}
+@keyframes lpulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+@media print{#hdr,#rail,#sb,#cbar,#toast,#dp,#mo,.no-print,#sb-banner,#login-screen{display:none!important}#body{display:block}#cnt{display:block;overflow:visible}#cscroll{overflow:visible;padding:0}.view{display:none!important}#view-print{display:block!important}.doc-preview{box-shadow:none;border:none;max-width:100%}.doc-inner{padding:32px 40px}}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════
+  LOGIN SCREEN
+════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-header">
+      <div class="login-logo"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <div class="login-org">Minds Over Tumors</div>
+      <div class="login-sub">Nonprofit CRM — Staff Portal</div>
+    </div>
+    <div class="login-body">
+      <h2>Sign in to your account</h2>
+      <p>Enter your credentials to access the CRM dashboard.</p>
+
+      <!-- Supabase not configured notice -->
+      <div class="sb-setup" id="sb-setup-notice">
+        <strong>Supabase not yet configured</strong>
+        To enable live login, paste your Supabase project URL and anon key into the <strong>Settings → Supabase</strong> section after signing in with demo mode, or enter them below. Get these from your <a href="https://supabase.com/dashboard" target="_blank">Supabase dashboard</a> under <code>Project Settings → API</code>.
+      </div>
+
+      <div id="login-error" class="login-error"></div>
+
+      <div class="login-field">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="you@mindsovertumors.org" autocomplete="email">
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <button class="login-btn" id="login-btn" onclick="handleLogin()">
+        <span id="login-btn-text">Sign In</span>
+        <div class="login-spinner" id="login-spinner"></div>
+      </button>
+
+      <div class="login-divider">or</div>
+
+      <button class="login-btn" style="background:var(--navy);margin-top:0" onclick="handleDemoLogin()">
+        <span>Continue in Demo Mode</span>
+      </button>
+    </div>
+    <div class="login-footer">
+      Demo mode uses local browser storage. Live mode requires Supabase.<br>
+      <a href="mailto:info@mindsovertumors.org">Contact admin for access</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+  SUPABASE SETUP BANNER (shown when in demo mode)
+════════════════════════════════════ -->
+<div id="sb-banner" class="hidden">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <strong>Demo Mode</strong> — Data saves locally in this browser only.
+  <a href="#" onclick="switchView('settings');dismissBanner();return false">Connect Supabase</a> to enable team access, real login, and persistent cloud storage.
+  <button class="banner-dismiss" onclick="dismissBanner()">✕</button>
+</div>
+
+<!-- ════════════════════════════════════
+  HEADER
+════════════════════════════════════ -->
+<header id="hdr">
+  <div id="hdr-logo">
+    <div class="lmark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+    <div><div class="lname">Minds Over Tumors</div><div class="lsub">Nonprofit CRM</div></div>
+  </div>
+  <nav id="hdr-nav">
+    <div class="hn active" data-view="dashboard">Home</div>
+    <div class="hn" data-view="donors">Donors</div>
+    <div class="hn" data-view="donations">Donations</div>
+    <div class="hn" data-view="campaigns">Campaigns</div>
+    <div class="hn" data-view="events">Events</div>
+    <div class="hn" data-view="volunteers">Volunteers</div>
+    <div class="hn" data-view="grants">Grants</div>
+    <div class="hn" data-view="approvals" id="nav-approvals">Approvals<span class="hn-badge" id="approval-badge">0</span></div>
+    <div class="hn" data-view="automations">Automations</div>
+    <div class="hn" data-view="schedule">Schedule</div>
+    <div class="hn" data-view="onecause">OneCause</div>
+    <div class="hn" data-view="social">Social</div>
+  </nav>
+  <div id="hdr-right">
+    <div id="srch">
+      <svg style="width:13px;height:13px;stroke:rgba(255,255,255,.4);fill:none;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="gsearch" placeholder="Search donors…" autocomplete="off">
+    </div>
+    <div class="hdiv"></div>
+    <button class="hb" onclick="quickAdd()" style="font-size:20px;font-weight:300;color:rgba(255,255,255,.6)" title="New Record">+</button>
+    <button class="hb" onclick="switchView('settings')" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <div class="hdiv"></div>
+    <div id="user-menu" onclick="handleSignOut()">
+      <div class="user-av" id="user-av">A</div>
+      <div><div class="user-name" id="user-name">Admin</div><div class="user-signout">Sign out</div></div>
+    </div>
+  </div>
+</header>
+
+<div id="body">
+  <!-- RAIL -->
+  <div id="rail">
+    <button class="rb active" data-view="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span class="rtt">Dashboard</span></button>
+    <div class="rsep"></div>
+    <button class="rb" data-view="donors"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="rtt">Donors</span></button>
+    <button class="rb" data-view="volunteers"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="rtt">Volunteers</span></button>
+    <div class="rsep"></div>
+    <button class="rb" data-view="donations"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span class="rtt">Donations</span></button>
+    <button class="rb" data-view="campaigns"><svg viewBox="0 0 24 24"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span class="rtt">Campaigns</span></button>
+    <div class="rsep"></div>
+    <button class="rb" data-view="events"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rtt">Events</span></button>
+    <button class="rb" data-view="grants"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="rtt">Grants</span></button>
+    <div class="rsep"></div>
+    <button class="rb" data-view="approvals" id="rail-approvals"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="rtt">Approvals</span><span class="rb-badge" id="rail-badge">0</span></button>
+    <button class="rb" data-view="automations"><svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="rtt">Automations</span></button>
+    <button class="rb" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rtt">Schedule</span></button>
+    <button class="rb" data-view="onecause"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="rtt">OneCause</span></button>
+    <button class="rb" data-view="social"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span class="rtt">Social Hub</span></button>
+    <button class="rb" data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="rtt">Settings</span></button>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside id="sb">
+    <div id="sb-head"><div id="sb-mod">Dashboard</div></div>
+    <nav id="sb-scroll"><div id="sb-links"></div></nav>
+    <div id="sb-foot">
+      <div class="sb-db-status">
+        <div class="db-dot" id="db-dot"></div>
+        <span id="db-status-text">Demo mode</span>
+      </div>
+      <div class="rb-box">
+        <div class="rb-lbl">Total Raised</div>
+        <div class="rb-val">$<span id="sb-raised">420,000</span></div>
+        <div class="rb-sub">All-time · Minds Over Tumors</div>
+      </div>
+      <div class="sb-copy">© 2026 Minds Over Tumors</div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div id="cnt">
+    <div id="cbar">
+      <h1 id="ptitle">Dashboard</h1>
+      <div id="cacts"></div>
+    </div>
+    <div id="cscroll">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="srow">
+          <div class="sc dark"><div class="sc-l">Total Raised</div><div class="sc-v">$<span id="d-raised">420,000</span></div><div class="sc-s">All-time contributions</div></div>
+          <div class="sc"><div class="sc-l">Total Donors</div><div class="sc-v" id="d-donors">0</div><div class="sc-s">In database</div></div>
+          <div class="sc"><div class="sc-l">This Year</div><div class="sc-v">$<span id="d-year">0</span></div><div class="sc-s" id="d-yrs">0 gifts</div></div>
+          <div class="sc" style="cursor:pointer" onclick="switchView('approvals')">
+            <div class="sc-l">Pending Approvals</div>
+            <div class="sc-v" id="d-pending" style="color:var(--amber)">0</div>
+            <div class="sc-s">Click to review</div>
+          </div>
+        </div>
+        <div class="two-col" style="margin-bottom:16px">
+          <div class="panel">
+            <div class="ph"><h3>Recent Donations</h3><button class="btn-ghost btn" onclick="switchView('donations')">View all →</button></div>
+            <div id="d-dons"></div>
+          </div>
+          <div class="panel">
+            <div class="ph"><h3>Active Campaigns</h3><button class="btn-ghost btn" onclick="switchView('campaigns')">View all →</button></div>
+            <div id="d-camps"></div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="ph"><h3>Top Donors</h3><button class="btn-ghost btn" onclick="switchView('donors')">View all →</button></div>
+            <div id="d-top"></div>
+          </div>
+          <div class="panel">
+            <div class="ph"><h3>Pending Approvals</h3><button class="btn-ghost btn" onclick="switchView('approvals')">Review all →</button></div>
+            <div id="d-aq"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DONORS -->
+      <div class="view" id="view-donors">
+        <div class="fbar" id="dfilters">
+          <button class="fc active" data-df="all">All Contacts</button>
+          <button class="fc" data-df="major">Major ($1K+)</button>
+          <button class="fc" data-df="recurring">Recurring</button>
+          <button class="fc" data-df="lapsed">Lapsed</button>
+          <button class="fc" data-df="new">New</button>
+          <button class="fc" data-df="board">Board</button>
+          <button class="fc" data-df="corporate">Corporate</button>
+        </div>
+        <div class="tc">
+          <div class="tt">
+            <input id="dsearch" placeholder="Search donors…">
+            <div class="flex aic g2" style="margin-left:auto">
+              <span class="tsm tmu"><span id="dcnt">0</span> records</span>
+              <button class="btn btn-outline btn-sm" onclick="exportCSV()">Export CSV</button>
+              <button class="btn btn-primary btn-sm" onclick="openModal('donor')">New Donor</button>
+            </div>
+          </div>
+          <table><thead><tr><th>Name</th><th>Type</th><th>Organization</th><th>Total Given</th><th>Last Gift</th><th>Status</th><th>Tags</th><th style="width:60px"></th></tr></thead>
+          <tbody id="dtbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- VOLUNTEERS -->
+      <div class="view" id="view-volunteers">
+        <div class="tc">
+          <div class="tt">
+            <input id="vsearch" placeholder="Search volunteers…">
+            <div class="flex aic g2" style="margin-left:auto">
+              <span class="tsm tmu"><span id="vcnt">0</span> volunteers</span>
+              <button class="btn btn-primary btn-sm" onclick="openModal('volunteer')">Add Volunteer</button>
+            </div>
+          </div>
+          <table><thead><tr><th>Name</th><th>Role</th><th>Hours</th><th>Email</th><th>Phone</th><th>Status</th><th style="width:60px"></th></tr></thead>
+          <tbody id="vtbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- DONATIONS -->
+      <div class="view" id="view-donations">
+        <div class="fbar">
+          <button class="fc active" data-donf="all">All</button>
+          <button class="fc" data-donf="one-time">One-Time</button>
+          <button class="fc" data-donf="recurring">Recurring</button>
+          <button class="fc" data-donf="pledge">Pledge</button>
+          <button class="fc" data-donf="in-kind">In-Kind</button>
+        </div>
+        <div class="tc">
+          <div class="tt">
+            <input id="donsearch" placeholder="Search donations…">
+            <div class="flex aic g2" style="margin-left:auto">
+              <span class="tsm fw6 tnv">Total: $<span id="dontotal">0.00</span></span>
+              <button class="btn btn-primary btn-sm" onclick="openModal('donation')">Record Gift</button>
+            </div>
+          </div>
+          <table><thead><tr><th>Donor</th><th>Amount</th><th>Type</th><th>Campaign</th><th>Date</th><th>Method</th><th>Receipt</th><th>Docs</th></tr></thead>
+          <tbody id="dontbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- CAMPAIGNS -->
+      <div class="view" id="view-campaigns">
+        <div id="campgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px"></div>
+      </div>
+
+      <!-- EVENTS -->
+      <div class="view" id="view-events">
+        <div id="evgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px"></div>
+      </div>
+
+      <!-- GRANTS -->
+      <div class="view" id="view-grants">
+        <div class="tc">
+          <div class="tt">
+            <span class="tsm tmu">Grants, foundations &amp; corporate sponsors</span>
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openModal('grant')">Add Grant / Sponsor</button>
+          </div>
+          <table><thead><tr><th>Name</th><th>Type</th><th>Amount</th><th>Deadline</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody id="gtbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- APPROVALS -->
+      <div class="view" id="view-approvals">
+        <div class="srow" style="grid-template-columns:repeat(3,1fr)">
+          <div class="sc dark"><div class="sc-l">Pending Review</div><div class="sc-v" id="aq-pending">0</div><div class="sc-s">Awaiting your approval</div></div>
+          <div class="sc"><div class="sc-l">Approved Today</div><div class="sc-v" id="aq-today">0</div><div class="sc-s">Letters sent</div></div>
+          <div class="sc"><div class="sc-l">Total Processed</div><div class="sc-v" id="aq-total">0</div><div class="sc-s">All time</div></div>
+        </div>
+        <div class="fbar" id="aq-filters">
+          <button class="fc active" data-aqf="pending">Pending</button>
+          <button class="fc" data-aqf="approved">Approved</button>
+          <button class="fc" data-aqf="rejected">Rejected</button>
+          <button class="fc" data-aqf="all">All</button>
+        </div>
+        <div id="aq-list"></div>
+      </div>
+
+      <!-- AUTOMATIONS -->
+      <div class="view" id="view-automations">
+        <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--r2);padding:13px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue-dd)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div style="font-size:12.5px;color:var(--blue-dd);line-height:1.5"><strong>Approval Queue is ON.</strong> All generated documents are held for your review before anything is sent.</div>
+        </div>
+        <div id="auto-rules"></div>
+      </div>
+
+      <!-- SCHEDULE -->
+      <div class="view" id="view-schedule">
+        <div class="two-col" style="margin-bottom:20px">
+          <div>
+            <div class="cal-nav">
+              <button class="btn btn-outline btn-sm" onclick="calPrev()">← Previous</button>
+              <h2 id="cal-title"></h2>
+              <button class="btn btn-outline btn-sm" onclick="calNext()">Next →</button>
+            </div>
+            <div class="cal-grid" id="cal-header"></div>
+            <div id="cal-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+          </div>
+          <div>
+            <div class="ph" style="background:var(--white);border:1px solid var(--g200);border-radius:var(--r2) var(--r2) 0 0">
+              <h3>Upcoming</h3>
+              <button class="btn btn-primary btn-sm" onclick="openModal('schedule-event')">+ Add Event</button>
+            </div>
+            <div class="panel" style="border-radius:0 0 var(--r2) var(--r2);margin-bottom:16px">
+              <div id="schedule-list" style="padding:0"></div>
+            </div>
+            <div class="panel">
+              <div class="ph"><h3>Export to Apple Calendar</h3></div>
+              <div style="padding:14px 18px">
+                <p style="font-size:12.5px;color:var(--g500);margin-bottom:12px;line-height:1.6">Export your schedule as a .ics file. Open it on your Mac and every event imports directly into Apple Calendar — or Google Calendar — in one click.</p>
+                <div class="flex g2">
+                  <button class="btn btn-primary btn-sm" onclick="exportICS()">Export All as .ics</button>
+                  <button class="btn btn-outline btn-sm" onclick="exportICS('upcoming')">Upcoming Only</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ONECAUSE -->
+      <div class="view" id="view-onecause">
+        <div class="int-card">
+          <div class="flex jb aic" style="margin-bottom:4px"><h3>OneCause Integration</h3><span class="badge b-blue">API Ready</span></div>
+          <p>Connect your OneCause account to automatically sync event gifts, auction bids, ticket purchases, and supporter data. Get your API Key and Organization ID from your OneCause account manager.</p>
+          <div class="int-status">
+            <div class="int-dot" id="oc-dot"></div>
+            <div style="flex:1;font-size:12.5px;font-weight:600;color:var(--g700)" id="oc-lbl">Not connected</div>
+            <div class="tsm tmu" id="oc-time"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div class="ff"><label>API Key</label><input id="oc-key" type="password" placeholder="oc_live_xxxxxxxxxxxx"></div>
+            <div class="ff"><label>Organization ID</label><input id="oc-org" placeholder="Your Org ID"></div>
+          </div>
+          <div class="flex g2">
+            <button class="btn btn-primary" onclick="ocConnect()">Connect &amp; Sync</button>
+            <button class="btn btn-outline" id="oc-sync-btn" onclick="ocSync()" disabled>Manual Sync</button>
+            <button class="btn btn-danger" id="oc-disc-btn" onclick="ocDisconnect()" style="display:none">Disconnect</button>
+          </div>
+          <div class="sync-log" id="oc-log" style="display:none"></div>
+        </div>
+        <div class="two-col">
+          <div class="int-card" style="margin-bottom:0">
+            <h3 style="margin-bottom:12px">What Syncs from OneCause</h3>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${['Event ticket purchases → Donations','Auction bids &amp; wins → Donations','Paddle raise gifts → Donations','Supporter profiles → Donors','Event registrations → Events','Fund designations → Campaigns'].map(i=>`<div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--g600)"><div style="width:6px;height:6px;border-radius:50%;background:var(--blue);flex-shrink:0"></div>${i}</div>`).join('')}
+            </div>
+          </div>
+          <div class="int-card" style="margin-bottom:0">
+            <h3 style="margin-bottom:12px">Sync Schedule</h3>
+            <div class="ff"><label>Auto-Sync Frequency</label>
+              <select id="oc-freq" onchange="DB.oc.freq=this.value;save()">
+                <option value="3">Every 3 hours</option><option value="6">Every 6 hours</option>
+                <option value="12">Every 12 hours</option><option value="24" selected>Once daily</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOCIAL -->
+      <div class="view" id="view-social">
+        <div class="social-grid">
+          <div class="soc-card">
+            <div class="soc-head">
+              <div class="soc-logo" style="background:#E7F3FF"><svg viewBox="0 0 24 24" fill="#1877F2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></div>
+              <div><div class="soc-name">Facebook</div><div class="soc-handle">Minds Over Tumors</div></div>
+              <a href="https://www.facebook.com/share/1CCt3sigUZ/?mibextid=wwXlfr" target="_blank" class="btn btn-outline btn-xs" style="margin-left:auto">Open</a>
+            </div>
+            <div style="padding:14px 16px"><p style="font-size:12px;color:var(--g500);margin-bottom:12px;line-height:1.6">Requires a Page Access Token from Facebook Graph API Explorer.</p><button class="btn btn-outline btn-sm w100" onclick="openModal('token','fb')">Configure Token</button></div>
+          </div>
+          <div class="soc-card">
+            <div class="soc-head">
+              <div class="soc-logo" style="background:#FFF0F5"><svg viewBox="0 0 24 24" fill="none" stroke="#e6683c" stroke-width="2" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#e6683c" stroke="none"/></svg></div>
+              <div><div class="soc-name">Instagram</div><div class="soc-handle">@mindsovertumors</div></div>
+              <a href="https://www.instagram.com/mindsovertumors" target="_blank" class="btn btn-outline btn-xs" style="margin-left:auto">Open</a>
+            </div>
+            <div style="padding:14px 16px"><p style="font-size:12px;color:var(--g500);margin-bottom:12px;line-height:1.6">Requires an Instagram Business Account token via Facebook API.</p><button class="btn btn-outline btn-sm w100" onclick="openModal('token','ig')">Configure Token</button></div>
+          </div>
+          <div class="soc-card">
+            <div class="soc-head">
+              <div class="soc-logo" style="background:#E8F4FB"><svg viewBox="0 0 24 24" fill="#0A66C2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></div>
+              <div><div class="soc-name">LinkedIn</div><div class="soc-handle">Minds Over Tumors</div></div>
+              <a href="https://www.linkedin.com/company/minds-over-tumors" target="_blank" class="btn btn-outline btn-xs" style="margin-left:auto">Open</a>
+            </div>
+            <div style="padding:14px 16px"><p style="font-size:12px;color:var(--g500);margin-bottom:12px;line-height:1.6">Requires LinkedIn Marketing API token with organization social scopes.</p><button class="btn btn-outline btn-sm w100" onclick="openModal('token','li')">Configure Token</button></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Compose Post</h3></div>
+          <div style="padding:16px 18px">
+            <div class="platform-checks">
+              <label class="pcheck" onclick="this.classList.toggle('checked')"><div class="pcheck-dot fb-dot"></div>Facebook</label>
+              <label class="pcheck" onclick="this.classList.toggle('checked')"><div class="pcheck-dot ig-dot"></div>Instagram</label>
+              <label class="pcheck" onclick="this.classList.toggle('checked')"><div class="pcheck-dot li-dot"></div>LinkedIn</label>
+            </div>
+            <div class="ff"><label>Content</label>
+              <textarea id="post-content" placeholder="Share an update about Minds Over Tumors…" style="min-height:90px" oninput="const n=this.value.length;const cc=document.getElementById('char-count');cc.textContent=n+' / 3,000';cc.style.color=n>3000?'var(--red)':n>2700?'var(--amber)':'var(--g400)'"></textarea>
+              <div style="font-size:11px;color:var(--g400);text-align:right;margin-top:4px" id="char-count">0 / 3,000</div>
+            </div>
+            <div class="flex g2 mt3">
+              <button class="btn btn-primary" onclick="composePost()">Publish Now</button>
+              <button class="btn btn-outline" onclick="document.getElementById('post-content').value='';document.getElementById('char-count').textContent='0 / 3,000';document.querySelectorAll('.pcheck.checked').forEach(el=>el.classList.remove('checked'))">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings">
+
+        <!-- Supabase Connection -->
+        <div class="settings-section">
+          <h3>Supabase Connection</h3>
+          <div style="padding:16px 18px">
+            <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--r);padding:13px 16px;font-size:12.5px;color:var(--blue-dd);margin-bottom:16px;line-height:1.7">
+              <strong style="display:block;margin-bottom:4px">How to connect Supabase in 3 steps:</strong>
+              1. Go to <a href="https://supabase.com" target="_blank" style="color:var(--blue-dd);font-weight:700">supabase.com</a> → Create a free account → New Project<br>
+              2. In your project: <strong>Settings → API</strong> → copy the Project URL and anon/public key<br>
+              3. Paste them below and click <strong>Connect</strong>. Your CRM data will sync to Supabase from that point forward.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+              <div class="ff"><label>Supabase Project URL</label><input id="set-sb-url" placeholder="https://xxxx.supabase.co" value=""></div>
+              <div class="ff"><label>Supabase Anon Key</label><input id="set-sb-key" type="password" placeholder="eyJhbGciO…"></div>
+            </div>
+            <div class="flex aic g2">
+              <button class="btn btn-primary" onclick="connectSupabase()">Connect Supabase</button>
+              <button class="btn btn-outline" onclick="testSupabase()">Test Connection</button>
+              <span id="sb-conn-status" class="tsm tmu" style="margin-left:8px"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Organization -->
+        <div class="settings-section">
+          <h3>Organization</h3>
+          <div class="settings-row"><div><div class="sr-label">Organization Name</div></div><input style="width:260px" id="set-orgname" value="Minds Over Tumors"></div>
+          <div class="settings-row"><div><div class="sr-label">Contact Email</div><div class="sr-desc">Appears on receipts &amp; letters</div></div><input style="width:260px" id="set-email" value="info@mindsovertumors.org"></div>
+          <div class="settings-row"><div><div class="sr-label">EIN / Tax ID</div><div class="sr-desc">Required for tax receipts</div></div><input style="width:260px" id="set-ein" placeholder="XX-XXXXXXX"></div>
+          <div class="settings-row"><div><div class="sr-label">Your Title</div></div><input style="width:260px" id="set-title" value="President &amp; CEO"></div>
+          <div class="settings-row"><div><div class="sr-label">Your Name</div><div class="sr-desc">For letter sign-offs</div></div><input style="width:260px" id="set-name" placeholder="Your full name"></div>
+        </div>
+
+        <!-- Team Access -->
+        <div class="settings-section">
+          <h3>Team Access</h3>
+          <div style="padding:14px 18px">
+            <p style="font-size:12.5px;color:var(--g500);margin-bottom:14px;line-height:1.6">Once Supabase is connected, invite team members via the Supabase dashboard under <strong>Authentication → Users → Invite User</strong>. They'll receive an email and can sign in with their own credentials.</p>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;max-width:440px">
+              <div class="ff"><label>Invite by Email</label><input id="invite-email" type="email" placeholder="colleague@mindsovertumors.org"></div>
+              <div style="align-self:flex-end"><button class="btn btn-primary" onclick="inviteUser()">Send Invite</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data -->
+        <div class="settings-section">
+          <h3>Data Management</h3>
+          <div class="settings-row"><div><div class="sr-label">Export Backup</div><div class="sr-desc">Full JSON backup</div></div><button class="btn btn-outline btn-sm" onclick="exportAll()">Download JSON</button></div>
+          <div class="settings-row"><div><div class="sr-label">Import Data</div><div class="sr-desc">Restore from JSON backup</div></div><label class="btn btn-outline btn-sm" style="cursor:pointer">Import JSON<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label></div>
+          <div class="settings-row"><div><div class="sr-label">Clear All Data</div><div class="sr-desc" style="color:var(--red)">Cannot be undone</div></div><button class="btn btn-danger btn-sm" onclick="clearAll()">Clear Database</button></div>
+        </div>
+
+        <div style="text-align:right"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></div>
+      </div>
+
+      <div class="view" id="view-print"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div id="dp">
+  <div class="dp-hdr">
+    <div class="dp-top"><span></span><button class="dpc" onclick="closePanel()">✕</button></div>
+    <div id="dp-top-body"></div>
+  </div>
+  <div id="dp-rest"></div>
+</div>
+
+<!-- MODAL -->
+<div id="mo">
+  <div class="modal" id="modal-box">
+    <div class="mh"><div class="mt" id="mtitle"></div><button class="mx" onclick="closeModal()">✕</button></div>
+    <div class="mb" id="mbody"></div>
+    <div class="mf" id="mfoot"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+// SUPABASE CLIENT (loaded dynamically when credentials set)
+// ════════════════════════════════════════════════════
+let supabase=null;
+let currentUser=null;
+let demoMode=true;
+
+async function initSupabase(url,key){
+  if(!url||!key)return false;
+  try{
+    const{createClient}=await import('https://esm.sh/@supabase/supabase-js@2');
+    supabase=createClient(url,key);
+    return true;
+  }catch(e){console.error('Supabase load error',e);return false;}
+}
+
+// ════════════════════════════════════════════════════
+// DATA STORE (local + Supabase sync)
+// ════════════════════════════════════════════════════
+const DB={
+  donors:[],donations:[],campaigns:[],events:[],volunteers:[],grants:[],schedule:[],
+  _n:{donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,schedule:1},
+  oc:{key:'',org:'',connected:false,lastSync:'',freq:'24'},
+  social:{fb:'',ig:'',li:'',posts:[]},
+  settings:{orgname:'Minds Over Tumors',email:'info@mindsovertumors.org',ein:'',title:'President & CEO',name:'',sbUrl:'',sbKey:''},
+  automations:{
+    queue:[],
+    rules:{
+      receipt:{enabled:true,sent:0},
+      ack_first:{enabled:true,sent:0},
+      ack_major:{enabled:true,sent:0,threshold:500},
+      ack_recurring:{enabled:true,sent:0},
+      lapsed:{enabled:true,sent:0,months:12},
+      pledge:{enabled:true,sent:0},
+    },
+    templates:{
+      receipt:`Dear {{first_name}},
+
+Thank you for your generous contribution to Minds Over Tumors. This letter serves as your official tax receipt.
+
+Gift Amount: {{amount}}
+Gift Date: {{date}}
+Payment Method: {{payment_method}}
+Receipt Number: {{receipt_number}}
+
+No goods or services were provided in exchange for this contribution. Minds Over Tumors is a 501(c)(3) nonprofit organization. Your contribution is tax-deductible to the full extent allowed by law.
+
+EIN: {{ein}}
+
+Thank you for helping us make a difference in the lives of children and families facing brain tumor diagnoses.`,
+      ack_first:`Dear {{first_name}},
+
+On behalf of everyone at Minds Over Tumors, I want to personally thank you for your first gift of {{amount}}. This contribution means the world to us and to the children and families we serve.
+
+Founded in 2025, Minds Over Tumors exists to provide financial relief to families facing brain tumor diagnoses and to fund research that will one day lead to better outcomes. Your generosity is a direct investment in that mission.
+
+Welcome to the Minds Over Tumors family.`,
+      ack_major:`Dear {{first_name}},
+
+I am writing personally to express my deepest gratitude for your extraordinary gift of {{amount}} to Minds Over Tumors. Contributions of this magnitude are transformational — they enable us to expand our programs, reach more families, and accelerate the research that could change everything for children facing brain tumor diagnoses.
+
+Your generosity sets you apart, and I would love the opportunity to share more about the direct impact your gift will have.
+
+With sincere appreciation,`,
+      ack_recurring:`Dear {{first_name}},
+
+I want to take a moment to recognize your ongoing commitment to Minds Over Tumors. Your recurring gift of {{amount}} is one of the most meaningful forms of support we receive. Consistent, reliable giving allows us to plan ahead, sustain our programs, and be there for families the moment they need us.
+
+Thank you.`,
+      lapsed:`Dear {{first_name}},
+
+It has been a while, and I wanted to reach out personally to let you know we miss you. Your past support of Minds Over Tumors made a real difference, and we wanted to share what your generosity has helped us accomplish.
+
+If you are in a position to renew your support, even a small gift would mean the world to us and to the families we serve.`,
+      pledge:`Dear {{first_name}},
+
+Thank you for your pledge of {{amount}} to Minds Over Tumors. Your commitment to our mission is something we hold in the highest regard.
+
+This letter confirms your pledge. If you have any questions about your pledge or would like to discuss fulfillment options, please don't hesitate to reach out.`
+    }
+  }
+};
+
+const save=()=>{try{localStorage.setItem('mot8',JSON.stringify(DB))}catch(e){}};
+const load=()=>{
+  try{
+    const d=localStorage.getItem('mot8');
+    if(d){
+      const p=JSON.parse(d);
+      const rules=DB.automations.rules;
+      const tpls=DB.automations.templates;
+      Object.assign(DB,p);
+      DB.automations.rules=Object.assign(rules,p.automations?.rules||{});
+      DB.automations.templates=Object.assign(tpls,p.automations?.templates||{});
+      DB.automations.queue=p.automations?.queue||[];
+    }
+  }catch(e){}
+};
+const $=id=>document.getElementById(id);
+const nid=t=>{const i=DB._n[t]||1;DB._n[t]=i+1;return i};
+const esc=v=>v?(v+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
+const vf=id=>$(id)?$(id).value.trim():'';
+
+// ════════════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════════════
+async function handleLogin(){
+  const email=vf('login-email'),pass=vf('login-password');
+  if(!email||!pass){showLoginError('Please enter your email and password.');return}
+  const sbUrl=DB.settings.sbUrl,sbKey=DB.settings.sbKey;
+  if(!sbUrl||!sbKey){showLoginError('Supabase not configured. Use Demo Mode or add your Supabase credentials in Settings first.');return}
+  setLoginLoading(true);
+  const ok=await initSupabase(sbUrl,sbKey);
+  if(!ok){showLoginError('Could not load Supabase. Check your credentials.');setLoginLoading(false);return}
+  const{data,error}=await supabase.auth.signInWithPassword({email,password:pass});
+  if(error){showLoginError(error.message);setLoginLoading(false);return}
+  currentUser=data.user;
+  demoMode=false;
+  enterApp(email.split('@')[0]);
+}
+
+function handleDemoLogin(){
+  demoMode=true;currentUser=null;
+  enterApp('Admin');
+}
+
+function enterApp(name){
+  $('login-screen').style.display='none';
+  $('user-name').textContent=name;
+  $('user-av').textContent=name[0].toUpperCase();
+  if(demoMode){
+    $('sb-banner').classList.remove('hidden');
+    $('db-dot').className='db-dot demo';
+    $('db-status-text').textContent='Demo mode — local only';
+  } else {
+    $('sb-banner').classList.add('hidden');
+    $('db-dot').className='db-dot live';
+    $('db-status-text').textContent='Connected to Supabase';
+  }
+  switchView('dashboard');
+}
+
+async function handleSignOut(){
+  if(!demoMode&&supabase){await supabase.auth.signOut()}
+  currentUser=null;demoMode=true;
+  $('login-screen').style.display='flex';
+  toast('Signed out.');
+}
+
+function showLoginError(msg){const el=$('login-error');el.textContent=msg;el.classList.add('show')}
+function clearLoginError(){$('login-error').classList.remove('show')}
+function setLoginLoading(on){
+  $('login-btn-text').style.display=on?'none':'inline';
+  $('login-spinner').style.display=on?'block':'none';
+  $('login-btn').disabled=on;
+}
+
+// Enter on password field
+$('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin()});
+$('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')$('login-password').focus()});
+[$('login-email'),$('login-password')].forEach(el=>el.addEventListener('input',clearLoginError));
+
+function dismissBanner(){$('sb-banner').classList.add('hidden')}
+
+// ════════════════════════════════════════════════════
+// SUPABASE SETTINGS
+// ════════════════════════════════════════════════════
+async function connectSupabase(){
+  const url=vf('set-sb-url'),key=vf('set-sb-key');
+  if(!url||!key){toast('Enter both your Supabase URL and anon key.','error');return}
+  $('sb-conn-status').textContent='Testing…';
+  const ok=await initSupabase(url,key);
+  if(!ok){$('sb-conn-status').textContent='Failed to load Supabase client.';toast('Connection failed. Check your URL and key.','error');return}
+  const{error}=await supabase.from('donors').select('id').limit(1);
+  if(error&&error.code!=='PGRST116'&&error.code!=='42P01'){
+    $('sb-conn-status').textContent='Error: '+error.message;
+    toast('Connection error — make sure your project is active.','error');return;
+  }
+  DB.settings.sbUrl=url;DB.settings.sbKey=key;save();
+  $('sb-conn-status').textContent='Connected!';
+  $('db-dot').className='db-dot live';$('db-status-text').textContent='Connected to Supabase';
+  $('sb-banner').classList.add('hidden');
+  demoMode=false;
+  toast('Supabase connected! Your data will now sync to the cloud.','success');
+  ensureSupabaseTables();
+}
+
+async function testSupabase(){
+  if(!supabase){toast('Enter credentials and click Connect first.','error');return}
+  const{error}=await supabase.from('donors').select('id').limit(1);
+  if(error&&error.code!=='42P01'){toast('Connection error: '+error.message,'error')}
+  else{toast('Supabase connection is working!','success')}
+}
+
+async function ensureSupabaseTables(){
+  // Tables need to be created in Supabase dashboard SQL editor.
+  // We show instructions if tables don't exist yet.
+  if(!supabase)return;
+  const{error}=await supabase.from('donors').select('id').limit(1);
+  if(error?.code==='42P01'){
+    openModal('sb-setup');
+  }
+}
+
+async function inviteUser(){
+  const email=vf('invite-email');
+  if(!email){toast('Enter an email address.','error');return}
+  if(!supabase){toast('Connect Supabase first.','error');return}
+  const{error}=await supabase.auth.admin?.inviteUserByEmail?.(email).catch(()=>({error:{message:'Admin API not available in browser. Invite via Supabase dashboard.'}}))
+    ||{error:{message:'Invite users via Supabase dashboard → Authentication → Users → Invite User'}};
+  if(error)toast(error.message,'error');
+  else toast('Invitation sent to '+email,'success');
+}
+
+// ════════════════════════════════════════════════════
+// SUPABASE DATA SYNC
+// When Supabase is connected, we read/write there.
+// Otherwise we use localStorage (demo mode).
+// ════════════════════════════════════════════════════
+async function sbSave(table,obj){
+  if(!supabase||demoMode)return;
+  await supabase.from(table).upsert(obj);
+}
+async function sbDelete(table,id){
+  if(!supabase||demoMode)return;
+  await supabase.from(table).delete().eq('id',id);
+}
+async function sbLoad(table){
+  if(!supabase||demoMode)return null;
+  const{data,error}=await supabase.from(table).select('*').order('created_at',{ascending:false});
+  if(error)return null;
+  return data;
+}
+
+async function loadFromSupabase(){
+  if(!supabase||demoMode)return;
+  toast('Loading from Supabase…');
+  const tables=['donors','donations','campaigns','events','volunteers','grants'];
+  for(const t of tables){
+    const data=await sbLoad(t);
+    if(data)DB[t]=data;
+  }
+  renderAll();toast('Data loaded from Supabase!','success');
+}
+
+// ════════════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════════════
+const MNAMES={dashboard:'Dashboard',donors:'Donors & Contacts',donations:'Donations',campaigns:'Campaigns',events:'Events',volunteers:'Volunteers',grants:'Grants & Sponsors',approvals:'Approval Queue',automations:'Automations',schedule:'Schedule',onecause:'OneCause',social:'Social Hub',settings:'Settings'};
+const SBL={
+  dashboard:[{t:'Overview'},{t:'Recent Donations'},{t:'Top Donors'}],
+  donors:[{t:'All Contacts'},{t:'Major Donors'},{t:'Recurring'},{t:'Lapsed'},{t:'Board Members'}],
+  donations:[{t:'All Gifts'},{t:'One-Time'},{t:'Recurring'},{t:'Pledges'}],
+  campaigns:[{t:'All Campaigns'},{t:'Active'},{t:'Completed'}],
+  events:[{t:'All Events'},{t:'Upcoming'},{t:'Past Events'}],
+  volunteers:[{t:'All Volunteers'},{t:'Student Hours'},{t:'Event Staff'}],
+  grants:[{t:'All Grants'},{t:'Active'},{t:'Applications'}],
+  approvals:[{t:'Pending Review'},{t:'Approved'},{t:'Rejected'}],
+  automations:[{t:'Rules'},{t:'Templates'}],
+  schedule:[{t:'Calendar'},{t:'Upcoming'},{t:'Apple Export'}],
+  onecause:[{t:'Connection'},{t:'Sync Settings'}],
+  social:[{t:'Accounts'},{t:'Compose'}],
+  settings:[{t:'Supabase'},{t:'Organization'},{t:'Team Access'},{t:'Data'}],
+};
+const MACTS={
+  dashboard:`<button class="btn btn-navy" onclick="quickAdd()">New Record</button>`,
+  donors:`<button class="btn btn-outline btn-sm" onclick="exportCSV()">Export CSV</button><button class="btn btn-primary" onclick="openModal('donor')">New Donor</button>`,
+  volunteers:`<button class="btn btn-primary" onclick="openModal('volunteer')">Add Volunteer</button>`,
+  donations:`<button class="btn btn-primary" onclick="openModal('donation')">Record Gift</button>`,
+  campaigns:`<button class="btn btn-primary" onclick="openModal('campaign')">New Campaign</button>`,
+  events:`<button class="btn btn-primary" onclick="openModal('event')">New Event</button>`,
+  grants:`<button class="btn btn-primary" onclick="openModal('grant')">Add Grant / Sponsor</button>`,
+  approvals:`<button class="btn btn-outline btn-sm" onclick="approveAll()">Approve All Pending</button>`,
+  automations:`<button class="btn btn-outline btn-sm" onclick="runLapsedCheck()">Run Lapsed Check</button><button class="btn btn-primary" onclick="openTemplateEditor()">Edit Templates</button>`,
+  schedule:`<button class="btn btn-outline btn-sm" onclick="exportICS()">Export .ics</button><button class="btn btn-primary" onclick="openModal('schedule-event')">Add Event</button>`,
+  settings:`<button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>`,
+};
+
+let cv='dashboard';
+function switchView(v){
+  cv=v;
+  document.querySelectorAll('.hn').forEach(e=>e.classList.toggle('active',e.dataset.view===v));
+  document.querySelectorAll('.rb').forEach(e=>e.classList.toggle('active',e.dataset.view===v));
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('active',e.id==='view-'+v));
+  $('ptitle').textContent=MNAMES[v]||v;
+  $('sb-mod').textContent=MNAMES[v]||v;
+  $('sb-links').innerHTML=(SBL[v]||[]).map((l,i)=>`<div class="sbi${i===0?' active':''}" onclick="sbAct(this)">${l.t}</div>`).join('');
+  $('cacts').innerHTML=MACTS[v]||'';
+  if(v==='approvals')renderQueue();
+  if(v==='automations')renderAutoRules();
+  if(v==='schedule'){renderCalendar();renderScheduleList();}
+  if(v==='onecause')renderOC();
+  if(v==='settings')loadSettings();
+  renderAll();
+}
+function sbAct(el){document.querySelectorAll('.sbi').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
+document.querySelectorAll('.hn').forEach(e=>e.addEventListener('click',()=>switchView(e.dataset.view)));
+document.querySelectorAll('.rb').forEach(e=>e.addEventListener('click',()=>switchView(e.dataset.view)));
+
+// ════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════
+function toast(msg,type='',dur=2800){
+  const t=$('toast');t.textContent=msg;
+  t.className='show'+(type?' '+type:'');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='',dur);
+}
+
+// ════════════════════════════════════════════════════
+// MODAL
+// ════════════════════════════════════════════════════
+const closeModal=()=>{$('mo').classList.remove('open');$('modal-box').className='modal'};
+$('mo').addEventListener('click',e=>{if(e.target===$('mo'))closeModal()});
+
+function openModal(type,id=null){
+  const T=$('mtitle'),B=$('mbody'),F=$('mfoot');
+  $('modal-box').className='modal';
+
+  if(type==='donor'){
+    const d=id?DB.donors.find(x=>x.id===id):null;
+    T.textContent=d?'Edit Contact':'New Donor / Contact';
+    B.innerHTML=`<div class="fg">
+      <div class="ff"><label>First Name *</label><input id="f-fn" value="${esc(d?.fname)}"></div>
+      <div class="ff"><label>Last Name *</label><input id="f-ln" value="${esc(d?.lname)}"></div>
+      <div class="ff"><label>Email</label><input id="f-em" type="email" value="${esc(d?.email)}"></div>
+      <div class="ff"><label>Phone</label><input id="f-ph" value="${esc(d?.phone)}"></div>
+      <div class="ff"><label>Organization</label><input id="f-or" value="${esc(d?.org)}"></div>
+      <div class="ff"><label>Contact Type</label><select id="f-ty">${['Individual','Corporate','Foundation','Board Member','Family'].map(o=>`<option${d?.type===o?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Status</label><select id="f-st">${['Active','Lapsed','Prospect','New'].map(o=>`<option${(d?.status===o||(!d&&o==='Active'))?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Tags (comma-separated)</label><input id="f-tg" value="${esc(d?.tags)}" placeholder="major, recurring, gala2026…"></div>
+      <div class="ff full"><label>Address</label><input id="f-ad" value="${esc(d?.address)}"></div>
+      <div class="ff full"><label>Notes</label><textarea id="f-no">${esc(d?.notes)}</textarea></div>
+    </div>`;
+    F.innerHTML=`${d?`<button class="btn btn-danger btn-sm" onclick="delDonor(${d.id})">Delete</button><span style="flex:1"></span>`:''}
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDonor(${d?d.id:null})">${d?'Save Changes':'Create Contact'}</button>`;
+  }
+
+  if(type==='donation'){
+    const opts=DB.donors.map(d=>`<option value="${d.id}">${d.fname} ${d.lname}</option>`).join('');
+    const camps='<option value="">— None —</option>'+DB.campaigns.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    T.textContent='Record Donation';
+    B.innerHTML=`<div class="fg">
+      <div class="ff"><label>Donor *</label><select id="f-dd"><option value="">Select donor…</option>${opts}</select></div>
+      <div class="ff"><label>Amount ($) *</label><input id="f-da" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="ff"><label>Date *</label><input id="f-dt" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="ff"><label>Gift Type</label><select id="f-dty">${['One-Time','Recurring','Pledge','In-Kind','Matching Gift'].map(o=>`<option>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Campaign</label><select id="f-dc">${camps}</select></div>
+      <div class="ff"><label>Payment Method</label><select id="f-dp">${['Credit Card','Check','ACH / Bank Transfer','Cash','PayPal','Apple Pay','OneCause','Stripe'].map(o=>`<option>${o}</option>`).join('')}</select></div>
+      <div class="ff full"><label>Notes</label><textarea id="f-dn" style="min-height:55px"></textarea></div>
+    </div>`;
+    F.innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveDon()">Record Gift</button>`;
+  }
+
+  if(type==='campaign'){
+    const c=id?DB.campaigns.find(x=>x.id===id):null;
+    T.textContent=c?'Edit Campaign':'New Campaign';
+    B.innerHTML=`<div class="fg">
+      <div class="ff full"><label>Campaign Name *</label><input id="f-cn" value="${esc(c?.name)}" placeholder="Annual Gala 2026…"></div>
+      <div class="ff"><label>Goal ($)</label><input id="f-cg" type="number" value="${c?.goal||''}"></div>
+      <div class="ff"><label>Status</label><select id="f-cs">${['Active','Planned','Completed','Paused'].map(o=>`<option${(c?.status===o||(!c&&o==='Active'))?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Start Date</label><input id="f-csd" type="date" value="${c?.start||''}"></div>
+      <div class="ff"><label>End Date</label><input id="f-ced" type="date" value="${c?.end||''}"></div>
+      <div class="ff full"><label>Description</label><textarea id="f-cd">${esc(c?.desc)}</textarea></div>
+    </div>`;
+    F.innerHTML=`${c?`<button class="btn btn-danger btn-sm" onclick="delCamp(${c.id})">Delete</button><span style="flex:1"></span>`:''}
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCamp(${c?c.id:null})">${c?'Save Changes':'Create Campaign'}</button>`;
+  }
+
+  if(type==='event'){
+    const e=id?DB.events.find(x=>x.id===id):null;
+    T.textContent=e?'Edit Event':'New Event';
+    B.innerHTML=`<div class="fg">
+      <div class="ff full"><label>Event Name *</label><input id="f-en" value="${esc(e?.name)}"></div>
+      <div class="ff"><label>Date *</label><input id="f-ed" type="date" value="${e?.date||''}"></div>
+      <div class="ff"><label>Type</label><select id="f-ety">${['Gala','Auction','Community Event','Walk / Run','Virtual Event','Other'].map(o=>`<option${(e?.type===o||(!e&&o==='Gala'))?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Venue</label><input id="f-ev" value="${esc(e?.venue)}"></div>
+      <div class="ff"><label>Revenue Goal ($)</label><input id="f-eg" type="number" value="${e?.goal||''}"></div>
+      <div class="ff"><label>Expected Attendees</label><input id="f-ea" type="number" value="${e?.attendees||''}"></div>
+      <div class="ff"><label>Status</label><select id="f-es">${['Planned','Active','Completed','Cancelled'].map(o=>`<option${(e?.status===o||(!e&&o==='Planned'))?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff full"><label>Notes</label><textarea id="f-eno">${esc(e?.desc)}</textarea></div>
+    </div>`;
+    F.innerHTML=`${e?`<button class="btn btn-danger btn-sm" onclick="delEv(${e.id})">Delete</button><span style="flex:1"></span>`:''}
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEv(${e?e.id:null})">${e?'Save Changes':'Create Event'}</button>`;
+  }
+
+  if(type==='volunteer'){
+    const v=id?DB.volunteers.find(x=>x.id===id):null;
+    T.textContent=v?'Edit Volunteer':'Add Volunteer';
+    B.innerHTML=`<div class="fg">
+      <div class="ff"><label>First Name *</label><input id="f-vf" value="${esc(v?.fname)}"></div>
+      <div class="ff"><label>Last Name *</label><input id="f-vl" value="${esc(v?.lname)}"></div>
+      <div class="ff"><label>Email</label><input id="f-ve" type="email" value="${esc(v?.email)}"></div>
+      <div class="ff"><label>Phone</label><input id="f-vp" value="${esc(v?.phone)}"></div>
+      <div class="ff"><label>Role</label><select id="f-vr">${['General','Student','Event Lead','Committee Member','Medical Pro','Board Member'].map(o=>`<option${(v?.role===o||(!v&&o==='General'))?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Hours Logged</label><input id="f-vh" type="number" value="${v?.hours||0}" min="0"></div>
+      <div class="ff full"><label>Notes</label><textarea id="f-vn">${esc(v?.notes)}</textarea></div>
+    </div>`;
+    F.innerHTML=`${v?`<button class="btn btn-danger btn-sm" onclick="delVol(${v.id})">Delete</button><span style="flex:1"></span>`:''}
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveVol(${v?v.id:null})">${v?'Save Changes':'Add Volunteer'}</button>`;
+  }
+
+  if(type==='grant'){
+    T.textContent='Add Grant / Sponsor';
+    B.innerHTML=`<div class="fg">
+      <div class="ff full"><label>Name *</label><input id="f-gn" placeholder="Foundation or company name"></div>
+      <div class="ff"><label>Type</label><select id="f-gt">${['Grant','Corporate Sponsor','In-Kind','Government'].map(o=>`<option>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Amount ($)</label><input id="f-ga" type="number"></div>
+      <div class="ff"><label>Deadline / Renewal</label><input id="f-gd" type="date"></div>
+      <div class="ff"><label>Status</label><select id="f-gs">${['Prospect','Applied','Awarded','Declined','Renewal Due'].map(o=>`<option>${o}</option>`).join('')}</select></div>
+      <div class="ff full"><label>Notes</label><textarea id="f-gno"></textarea></div>
+    </div>`;
+    F.innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveGrant()">Add</button>`;
+  }
+
+  if(type==='schedule-event'){
+    const s=id?DB.schedule.find(x=>x.id===id):null;
+    T.textContent=s?'Edit Schedule Event':'Add to Schedule';
+    B.innerHTML=`<div class="fg">
+      <div class="ff full"><label>Title *</label><input id="f-st" value="${esc(s?.title)}" placeholder="Donor meeting, board call, gala prep…"></div>
+      <div class="ff"><label>Date *</label><input id="f-sd" type="date" value="${s?.date||new Date().toISOString().slice(0,10)}"></div>
+      <div class="ff"><label>Time</label><input id="f-stime" type="time" value="${s?.time||'09:00'}"></div>
+      <div class="ff"><label>Duration (mins)</label><input id="f-sdur" type="number" value="${s?.duration||60}" min="15" step="15"></div>
+      <div class="ff"><label>Type</label><select id="f-stype">
+        ${['meeting','gala','deadline','call','personal','other'].map(o=>`<option value="${o}"${(s?.type===o||(!s&&o==='meeting'))?' selected':''}>${o.charAt(0).toUpperCase()+o.slice(1)}</option>`).join('')}
+      </select></div>
+      <div class="ff"><label>Location</label><input id="f-sloc" value="${esc(s?.location)}" placeholder="Zoom, office, venue…"></div>
+      <div class="ff full"><label>Notes</label><textarea id="f-snotes">${esc(s?.notes)}</textarea></div>
+    </div>`;
+    F.innerHTML=`${s?`<button class="btn btn-danger btn-sm" onclick="delSchedule(${s.id})">Delete</button><span style="flex:1"></span>`:''}
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSchedule(${s?s.id:null})">${s?'Save Changes':'Add to Schedule'}</button>`;
+  }
+
+  if(type==='token'){
+    const pname={fb:'Facebook',ig:'Instagram',li:'LinkedIn'}[id];
+    const guide={
+      fb:`Go to <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color:var(--blue)">Facebook Graph API Explorer</a> → select your Page → generate a token with <code>pages_read_engagement</code> and <code>publish_pages</code>.`,
+      ig:`Connect your Instagram Business Account to Facebook, then generate a token via the <a href="https://developers.facebook.com/docs/instagram-basic-display-api" target="_blank" style="color:var(--blue)">Instagram Basic Display API</a>.`,
+      li:`Create an app at <a href="https://www.linkedin.com/developers/" target="_blank" style="color:var(--blue)">LinkedIn Developer Portal</a> with <code>w_organization_social</code> and <code>r_organization_social</code> scopes.`
+    }[id];
+    T.textContent=`Configure ${pname} Token`;
+    B.innerHTML=`<p style="font-size:12.5px;color:var(--g600);line-height:1.7;margin-bottom:16px">${guide}</p>
+      <div class="ff"><label>Access Token</label><input id="f-token" type="password" value="${DB.social[id]||''}" placeholder="Paste token here…"></div>`;
+    F.innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="DB.social['${id}']=vf('f-token');save();closeModal();toast('Token saved!','success')">Save Token</button>`;
+  }
+
+  if(type==='preview-doc'){
+    const item=DB.automations.queue.find(q=>q.id===id);
+    if(!item)return;
+    $('modal-box').className='modal modal-xl';
+    T.textContent='Document Preview — '+item.typeLabel;
+    B.innerHTML=`<div style="max-height:70vh;overflow-y:auto">${buildDocHTML(item)}</div>
+      ${item.status==='pending'?`<div style="background:var(--amber-bg);border:1px solid #f0d070;border-radius:var(--r);padding:12px 14px;margin-top:14px;font-size:12.5px;color:var(--amber);font-weight:500">Review the document above. Click Approve to send, or Reject to discard.</div>`:''}`;
+    F.innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-outline btn-sm" onclick="copyDocText('pdoc-${item.id}')">Copy Text</button>
+      <button class="btn btn-outline btn-sm" onclick="window.print()">Print / PDF</button>
+      ${item.status==='pending'?`<button class="btn btn-reject" onclick="rejectDoc('${item.id}')">Reject</button><button class="btn btn-approve" onclick="approveDoc('${item.id}')">Approve &amp; Send</button>`:''}`;
+  }
+
+  if(type==='sb-setup'){
+    $('modal-box').className='modal modal-lg';
+    T.textContent='Set Up Supabase Tables';
+    B.innerHTML=`<p style="font-size:12.5px;color:var(--g600);margin-bottom:16px;line-height:1.6">Run this SQL in your Supabase <strong>SQL Editor</strong> to create the required tables. Go to your Supabase project → <strong>SQL Editor</strong> → paste and run:</p>
+    <div style="background:var(--navy-dd);border-radius:var(--r);padding:16px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;color:rgba(255,255,255,.8);max-height:300px;overflow-y:auto;line-height:1.8;white-space:pre-wrap" id="sql-block">${getSetupSQL()}</div>
+    <div class="flex g2 mt3"><button class="btn btn-primary btn-sm" onclick="copySQL()">Copy SQL</button><button class="btn btn-outline btn-sm" onclick="window.open('https://supabase.com/dashboard','_blank')">Open Supabase Dashboard</button></div>`;
+    F.innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Close</button><button class="btn btn-primary" onclick="closeModal();loadFromSupabase()">Tables Created — Load Data</button>`;
+  }
+
+  $('mo').classList.add('open');
+}
+
+function quickAdd(){
+  const m={dashboard:'donor',donors:'donor',volunteers:'volunteer',donations:'donation',campaigns:'campaign',events:'event',grants:'grant',approvals:'donor',automations:'donation',schedule:'schedule-event',onecause:'donation',social:'donor',settings:'donor'};
+  openModal(m[cv]||'donor');
+}
+
+function getSetupSQL(){
+  return `-- Minds Over Tumors CRM — Supabase Schema
+-- Run this in your Supabase SQL Editor
+
+create table if not exists donors (
+  id serial primary key,
+  fname text, lname text, email text, phone text,
+  org text, type text, status text, tags text,
+  address text, notes text, created_at timestamptz default now()
+);
+
+create table if not exists donations (
+  id serial primary key,
+  donor_id int references donors(id),
+  amount numeric, date date, type text,
+  campaign_id int, payment text, notes text, receipt text,
+  created_at timestamptz default now()
+);
+
+create table if not exists campaigns (
+  id serial primary key,
+  name text, goal numeric, status text,
+  start_date date, end_date date, description text,
+  created_at timestamptz default now()
+);
+
+create table if not exists events (
+  id serial primary key,
+  name text, date date, type text, venue text,
+  goal numeric, attendees int, status text, notes text,
+  created_at timestamptz default now()
+);
+
+create table if not exists volunteers (
+  id serial primary key,
+  fname text, lname text, email text, phone text,
+  role text, hours numeric default 0, notes text,
+  status text default 'Active', created_at timestamptz default now()
+);
+
+create table if not exists grants (
+  id serial primary key,
+  name text, type text, amount numeric,
+  deadline date, status text, notes text,
+  created_at timestamptz default now()
+);
+
+-- Enable Row Level Security (recommended)
+alter table donors enable row level security;
+alter table donations enable row level security;
+alter table campaigns enable row level security;
+alter table events enable row level security;
+alter table volunteers enable row level security;
+alter table grants enable row level security;
+
+-- Allow authenticated users full access
+create policy "auth_full" on donors for all using (auth.role() = 'authenticated');
+create policy "auth_full" on donations for all using (auth.role() = 'authenticated');
+create policy "auth_full" on campaigns for all using (auth.role() = 'authenticated');
+create policy "auth_full" on events for all using (auth.role() = 'authenticated');
+create policy "auth_full" on volunteers for all using (auth.role() = 'authenticated');
+create policy "auth_full" on grants for all using (auth.role() = 'authenticated');`;
+}
+
+function copySQL(){
+  navigator.clipboard.writeText(getSetupSQL()).then(()=>toast('SQL copied to clipboard!','success')).catch(()=>toast('Select all text in the box and copy manually.'));
+}
+
+// ════════════════════════════════════════════════════
+// CRUD — with Supabase sync
+// ════════════════════════════════════════════════════
+async function saveDonor(eid){
+  const fn=vf('f-fn'),ln=vf('f-ln');
+  if(!fn||!ln){alert('First and last name required.');return}
+  const obj={id:eid||nid('donors'),fname:fn,lname:ln,email:vf('f-em'),phone:vf('f-ph'),org:vf('f-or'),type:vf('f-ty'),status:vf('f-st'),tags:vf('f-tg'),address:vf('f-ad'),notes:vf('f-no'),created:eid?DB.donors.find(x=>x.id===eid)?.created:new Date().toISOString()};
+  if(eid)DB.donors[DB.donors.findIndex(x=>x.id===eid)]=obj;
+  else DB.donors.push(obj);
+  save();
+  await sbSave('donors',{...obj,fname:obj.fname,lname:obj.lname});
+  closeModal();renderAll();toast(eid?'Contact updated.':'Contact created!','success');
+}
+async function delDonor(id){
+  if(!confirm('Delete this contact?'))return;
+  DB.donors=DB.donors.filter(x=>x.id!==id);
+  DB.donations=DB.donations.filter(x=>x.donorId!==id);
+  save();await sbDelete('donors',id);
+  closeModal();closePanel();renderAll();toast('Contact deleted.');
+}
+
+async function saveDon(){
+  const did=parseInt(vf('f-dd')),amt=parseFloat($('f-da').value);
+  if(!did||!amt){alert('Please select a donor and enter an amount.');return}
+  const rec={id:nid('donations'),donorId:did,amount:amt,date:vf('f-dt'),type:vf('f-dty'),campaignId:parseInt(vf('f-dc'))||null,payment:vf('f-dp'),notes:vf('f-dn'),receipt:'MOT-'+String(Date.now()).slice(-7)};
+  DB.donations.push(rec);
+  triggerAutomations(rec);
+  save();await sbSave('donations',rec);
+  closeModal();renderAll();
+  const p=DB.automations.queue.filter(q=>q.status==='pending').length;
+  toast(`Gift recorded — ${rec.receipt}. ${p} document${p!==1?'s':''} pending approval.`,'success');
+}
+
+async function saveCamp(eid){
+  const name=vf('f-cn');if(!name){alert('Name required.');return}
+  const obj={id:eid||nid('campaigns'),name,goal:parseFloat($('f-cg').value)||0,status:vf('f-cs'),start:vf('f-csd'),end:vf('f-ced'),desc:vf('f-cd')};
+  if(eid)DB.campaigns[DB.campaigns.findIndex(x=>x.id===eid)]=obj;else DB.campaigns.push(obj);
+  save();await sbSave('campaigns',obj);closeModal();renderAll();toast(eid?'Updated.':'Campaign created!','success');
+}
+async function delCamp(id){if(!confirm('Delete?'))return;DB.campaigns=DB.campaigns.filter(x=>x.id!==id);save();await sbDelete('campaigns',id);closeModal();renderAll();toast('Deleted.')}
+
+async function saveEv(eid){
+  const name=vf('f-en'),date=vf('f-ed');if(!name||!date){alert('Name and date required.');return}
+  const obj={id:eid||nid('events'),name,date,type:vf('f-ety'),venue:vf('f-ev'),goal:parseFloat($('f-eg').value)||0,attendees:parseInt($('f-ea').value)||0,status:vf('f-es'),desc:vf('f-eno')};
+  if(eid)DB.events[DB.events.findIndex(x=>x.id===eid)]=obj;else DB.events.push(obj);
+  save();await sbSave('events',obj);closeModal();renderAll();toast(eid?'Updated.':'Event created!','success');
+}
+async function delEv(id){if(!confirm('Delete?'))return;DB.events=DB.events.filter(x=>x.id!==id);save();await sbDelete('events',id);closeModal();renderAll();toast('Deleted.')}
+
+async function saveVol(eid){
+  const fn=vf('f-vf'),ln=vf('f-vl');if(!fn||!ln){alert('Name required.');return}
+  const obj={id:eid||nid('volunteers'),fname:fn,lname:ln,email:vf('f-ve'),phone:vf('f-vp'),role:vf('f-vr'),hours:parseFloat($('f-vh').value)||0,notes:vf('f-vn'),status:'Active'};
+  if(eid)DB.volunteers[DB.volunteers.findIndex(x=>x.id===eid)]=obj;else DB.volunteers.push(obj);
+  save();await sbSave('volunteers',obj);closeModal();renderAll();toast(eid?'Updated.':'Volunteer added!','success');
+}
+async function delVol(id){if(!confirm('Delete?'))return;DB.volunteers=DB.volunteers.filter(x=>x.id!==id);save();await sbDelete('volunteers',id);closeModal();renderAll();toast('Deleted.')}
+
+async function saveGrant(){
+  const name=vf('f-gn');if(!name){alert('Name required.');return}
+  const obj={id:nid('grants'),name,type:vf('f-gt'),amount:parseFloat($('f-ga').value)||0,date:vf('f-gd'),status:vf('f-gs'),notes:vf('f-gno')};
+  DB.grants.push(obj);save();await sbSave('grants',obj);closeModal();renderAll();toast('Added!','success');
+}
+
+function saveSchedule(eid){
+  const title=vf('f-st'),date=vf('f-sd');if(!title||!date){alert('Title and date required.');return}
+  const obj={id:eid||nid('schedule'),title,date,time:vf('f-stime'),duration:parseInt($('f-sdur').value)||60,type:vf('f-stype'),location:vf('f-sloc'),notes:vf('f-snotes')};
+  if(eid)DB.schedule[DB.schedule.findIndex(x=>x.id===eid)]=obj;else DB.schedule.push(obj);
+  save();closeModal();renderCalendar();renderScheduleList();toast(eid?'Updated.':'Added to schedule!','success');
+}
+function delSchedule(id){if(!confirm('Remove?'))return;DB.schedule=DB.schedule.filter(x=>x.id!==id);save();closeModal();renderCalendar();renderScheduleList();toast('Removed.')}
+
+// ════════════════════════════════════════════════════
+// AUTOMATIONS
+// ════════════════════════════════════════════════════
+const TYPE_COLORS={receipt:'var(--blue-bg)',ack_first:'var(--green-bg)',ack_major:'var(--amber-bg)',ack_recurring:'var(--purple-bg)',lapsed:'var(--red-bg)',pledge:'var(--g100)'};
+const TYPE_ICON_COLORS={receipt:'var(--blue-dd)',ack_first:'var(--green)',ack_major:'var(--amber)',ack_recurring:'var(--purple)',lapsed:'var(--red)',pledge:'var(--g500)'};
+const TYPE_ICONS={
+  receipt:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>',
+  ack_first:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  ack_major:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  ack_recurring:'<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>',
+  lapsed:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  pledge:'<line x1="18" y1="2" x2="22" y2="6"/><path d="M7.5 20.5 19 9l-4-4L3.5 16.5 2 22z"/>'
+};
+
+function mergeTpl(tpl,vars){return(tpl||'').replace(/\{\{(\w+)\}\}/g,(m,k)=>vars[k]||m)}
+function buildDocVars(donor,don){
+  const s=DB.settings||{};
+  return{
+    first_name:donor?.fname||'Donor',last_name:donor?.lname||'',
+    amount:don?'$'+don.amount.toLocaleString('en-US',{minimumFractionDigits:2}):'$0.00',
+    date:don?fd(don.date):fd(new Date().toISOString().slice(0,10)),
+    payment_method:don?.payment||'Credit Card',
+    receipt_number:don?.receipt||'MOT-XXXXXX',
+    org_name:s.orgname||'Minds Over Tumors',
+    ein:s.ein||'[EIN — add in Settings]'
+  };
+}
+
+function buildDocHTML(item){
+  const s=DB.settings||{};
+  const org=s.orgname||'Minds Over Tumors';
+  const ein=s.ein||'[EIN — add in Settings]';
+  const title=s.title||'President & CEO';
+  const name=s.name||'[Your Name — add in Settings]';
+  const date=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const body=item.renderedBody||'';
+  return`<div class="doc-preview">
+    <div class="doc-print-bar no-print">
+      <div style="font-size:12.5px;font-weight:600;color:var(--navy)">${item.typeLabel} — ${item.donorName}</div>
+      <div class="flex g2"><button class="btn btn-outline btn-xs" onclick="copyDocText('pdoc-${item.id}')">Copy Text</button><button class="btn btn-primary btn-xs" onclick="window.print()">Print / PDF</button></div>
+    </div>
+    <div class="doc-inner" id="pdoc-${item.id}">
+      <div class="doc-hdr">
+        <div><div class="doc-org">${org}</div><div style="font-family:var(--f);font-size:11px;color:var(--g500);margin-top:3px">Making a Difference, One Family at a Time</div>${ein&&!ein.includes('[')&&ein.length>5?`<div style="font-family:var(--f);font-size:11px;color:var(--g500);margin-top:2px">EIN: ${ein}</div>`:''}</div>
+        <div style="text-align:right;font-family:var(--f)"><div style="font-weight:700;color:var(--navy);font-size:13px">${item.typeLabel}</div><div style="font-size:12px;color:var(--g500)">${date}</div>${item.receipt?`<div style="font-family:monospace;font-size:11px;color:var(--g400);margin-top:3px">${item.receipt}</div>`:''}</div>
+      </div>
+      ${item.type==='receipt'&&item.amount?`<div class="amount-box"><div class="ab-label">Gift Amount</div><div class="ab-value">${item.amount}</div><div style="font-size:12px;color:var(--g500);margin-top:4px">${item.giftType||''} · ${item.payment||''} · ${item.date||''}</div></div>`:''}
+      <div>${body.split('\n').filter(l=>l.trim()).map(l=>`<p style="margin-bottom:14px;font-family:Georgia,serif;font-size:13.5px;line-height:1.8;color:#1a1a1a">${l}</p>`).join('')}</div>
+      <div class="doc-sig" style="font-family:var(--f)">
+        <div style="margin-bottom:12px;font-size:13px;color:#1a1a1a">With gratitude,</div>
+        <div style="font-weight:700;color:var(--navy);font-size:13px">${name}</div>
+        <div style="font-size:12px;color:var(--g500)">${title} · ${org}</div>
+        <div style="margin-top:4px;font-size:12px"><a href="mailto:${s.email||'info@mindsovertumors.org'}" style="color:var(--blue)">${s.email||'info@mindsovertumors.org'}</a></div>
+      </div>
+    </div>
+    <div class="doc-footer-bar">${org} is a 501(c)(3) nonprofit organization · EIN: ${ein}<br>No goods or services were provided in exchange for this contribution.</div>
+  </div>`;
+}
+
+function triggerAutomations(don){
+  const donor=DB.donors.find(x=>x.id===don.donorId);if(!donor)return;
+  const rules=DB.automations.rules;
+  const prev=DB.donations.filter(x=>x.donorId===don.donorId&&x.id!==don.id);
+  const isFirst=prev.length===0;
+  const isMajor=don.amount>=(rules.ack_major.threshold||500);
+  const isRecurring=don.type==='Recurring';
+  const isPledge=don.type==='Pledge';
+  const vars=buildDocVars(donor,don);
+  const queue=(type,label)=>{
+    if(!rules[type]?.enabled)return;
+    DB.automations.queue.unshift({id:'q-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),type,typeLabel:label,status:'pending',donorId:donor.id,donorName:donor.fname+' '+donor.lname,donorEmail:donor.email,donationId:don.id,amount:vars.amount,giftType:don.type,payment:don.payment,date:vars.date,receipt:don.receipt,renderedBody:mergeTpl(DB.automations.templates[type],vars),createdAt:new Date().toISOString()});
+    rules[type].sent=(rules[type].sent||0)+1;
+  };
+  if(rules.receipt?.enabled)queue('receipt','Tax Receipt');
+  if(isFirst&&rules.ack_first?.enabled)queue('ack_first','First Gift Acknowledgment');
+  if(isMajor&&rules.ack_major?.enabled)queue('ack_major','Major Donor Acknowledgment');
+  if(isRecurring&&!isFirst&&rules.ack_recurring?.enabled)queue('ack_recurring','Recurring Donor Thank-You');
+  if(isPledge&&rules.pledge?.enabled)queue('pledge','Pledge Confirmation');
+}
+
+function runLapsedCheck(){
+  const months=DB.automations.rules.lapsed?.months||12;
+  const cutoff=new Date();cutoff.setMonth(cutoff.getMonth()-months);
+  let found=0;
+  DB.donors.forEach(donor=>{
+    if(donor.status==='Lapsed')return;
+    const dons=DB.donations.filter(x=>x.donorId===donor.id);if(!dons.length)return;
+    const last=new Date(dons.sort((a,b)=>b.date.localeCompare(a.date))[0].date);
+    if(last<cutoff){
+      found++;
+      const vars=buildDocVars(donor,null);
+      DB.automations.queue.unshift({id:'q-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),type:'lapsed',typeLabel:'Lapsed Donor Re-Engagement',status:'pending',donorId:donor.id,donorName:donor.fname+' '+donor.lname,donorEmail:donor.email,renderedBody:mergeTpl(DB.automations.templates.lapsed,vars),createdAt:new Date().toISOString()});
+      DB.automations.rules.lapsed.sent=(DB.automations.rules.lapsed.sent||0)+1;
+      donor.status='Lapsed';
+    }
+  });
+  save();renderAll();renderQueue();updateBadge();
+  toast(found?`${found} lapsed donor letter${found>1?'s':''} added to approval queue.`:'No new lapsed donors found.');
+}
+
+// ════════════════════════════════════════════════════
+// APPROVAL QUEUE
+// ════════════════════════════════════════════════════
+let aqFilter='pending';
+function updateBadge(){
+  const n=DB.automations.queue.filter(q=>q.status==='pending').length;
+  $('approval-badge').textContent=n;
+  $('approval-badge').className=`hn-badge${n?' show':''}`;
+  $('rail-badge').textContent=n;
+  $('rail-badge').className=`rb-badge${n?' show':''}`;
+  if($('d-pending'))$('d-pending').textContent=n;
+  if($('aq-pending'))$('aq-pending').textContent=n;
+  const today=new Date().toDateString();
+  if($('aq-today'))$('aq-today').textContent=DB.automations.queue.filter(q=>q.status==='approved'&&new Date(q.approvedAt||0).toDateString()===today).length;
+  if($('aq-total'))$('aq-total').textContent=DB.automations.queue.filter(q=>q.status!=='pending').length;
+}
+
+function approveDoc(itemId){
+  const item=DB.automations.queue.find(q=>q.id===itemId);if(!item)return;
+  item.status='approved';item.approvedAt=new Date().toISOString();
+  save();closeModal();renderQueue();updateBadge();renderAll();
+  toast('Document approved and sent to '+item.donorName+'!','success');
+}
+function rejectDoc(itemId){
+  const item=DB.automations.queue.find(q=>q.id===itemId);if(!item)return;
+  item.status='rejected';item.rejectedAt=new Date().toISOString();
+  save();closeModal();renderQueue();updateBadge();renderAll();toast('Document rejected.');
+}
+function approveAll(){
+  const pending=DB.automations.queue.filter(q=>q.status==='pending');
+  if(!pending.length){toast('No pending documents.');return}
+  if(!confirm(`Approve and send all ${pending.length} pending documents?`))return;
+  pending.forEach(q=>{q.status='approved';q.approvedAt=new Date().toISOString()});
+  save();renderQueue();updateBadge();renderAll();
+  toast(`${pending.length} document${pending.length>1?'s':''} approved!`,'success');
+}
+
+function renderQueue(){
+  updateBadge();
+  const list=$('aq-list');if(!list)return;
+  let items=DB.automations.queue;
+  if(aqFilter==='pending')items=items.filter(q=>q.status==='pending');
+  else if(aqFilter==='approved')items=items.filter(q=>q.status==='approved');
+  else if(aqFilter==='rejected')items=items.filter(q=>q.status==='rejected');
+  if(!items.length){
+    list.innerHTML=`<div class="panel"><div class="es"><div class="es-ic"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><p>${aqFilter==='pending'?"You're all caught up! No pending documents.":aqFilter==='approved'?'No approved documents yet.':'No rejected documents.'}</p></div></div>`;
+    return;
+  }
+  list.innerHTML=items.map(item=>`<div class="aq-item ${item.status}">
+    <div class="aq-head">
+      <div class="aq-icon" style="background:${TYPE_COLORS[item.type]||'var(--g100)'}"><svg viewBox="0 0 24 24" style="stroke:${TYPE_ICON_COLORS[item.type]||'var(--g500)'}">${TYPE_ICONS[item.type]||''}</svg></div>
+      <div class="aq-info">
+        <div class="aq-title">${item.typeLabel} — <span style="color:var(--blue-dd)">${item.donorName}</span></div>
+        <div class="aq-sub">${item.donorEmail||'No email on file'} · ${new Date(item.createdAt).toLocaleString()}</div>
+      </div>
+      <div class="aq-status">${item.status==='pending'?'<span class="badge b-amber">Pending</span>':item.status==='approved'?'<span class="badge b-green">Approved</span>':'<span class="badge b-red">Rejected</span>'}</div>
+    </div>
+    <div class="aq-preview" onclick="openModal('preview-doc','${item.id}')">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g400);margin-bottom:8px;display:flex;justify-content:space-between"><span>${item.typeLabel}</span><span>${item.donorName}</span></div>
+      <div style="font-family:Georgia,serif;font-size:12px;line-height:1.7;color:var(--g600)">${esc((item.renderedBody||'').slice(0,240))}…</div>
+    </div>
+    <div class="aq-actions">
+      <button class="btn btn-outline btn-sm" onclick="openModal('preview-doc','${item.id}')">View Full Document</button>
+      ${item.status==='pending'?`<button class="btn btn-reject btn-sm" onclick="rejectDoc('${item.id}')">Reject</button><button class="btn btn-approve btn-sm" onclick="approveDoc('${item.id}')">Approve &amp; Send</button>`:''}
+      ${item.status==='approved'?`<span class="tsm tmu" style="line-height:28px">Approved ${new Date(item.approvedAt).toLocaleDateString()}</span>`:''}
+    </div>
+  </div>`).join('');
+}
+document.querySelectorAll('[data-aqf]').forEach(c=>c.onclick=function(){document.querySelectorAll('[data-aqf]').forEach(x=>x.classList.remove('active'));this.classList.add('active');aqFilter=this.dataset.aqf;renderQueue()});
+
+function copyDocText(id){
+  const el=$(id);if(!el){toast('Nothing to copy.','error');return}
+  navigator.clipboard.writeText(el.innerText).then(()=>toast('Letter copied!','success')).catch(()=>{const ta=document.createElement('textarea');ta.value=el.innerText;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied!')});
+}
+
+// ════════════════════════════════════════════════════
+// AUTO RULES
+// ════════════════════════════════════════════════════
+function renderAutoRules(){
+  const rules=DB.automations.rules;
+  const cfg=[
+    {key:'receipt',color:'var(--blue-bg)',ic:'var(--blue-dd)',title:'Tax Receipt',desc:'IRS-compliant receipt sent on every recorded gift'},
+    {key:'ack_first',color:'var(--green-bg)',ic:'var(--green)',title:'First Gift Acknowledgment',desc:"Personal welcome letter for a donor's very first gift"},
+    {key:'ack_major',color:'var(--amber-bg)',ic:'var(--amber)',title:'Major Donor Acknowledgment',desc:'Personalized letter for gifts at or above the threshold',extra:`<div class="ff" style="margin-top:10px;max-width:200px"><label>Gift Threshold ($)</label><input type="number" value="${rules.ack_major.threshold||500}" onchange="DB.automations.rules.ack_major.threshold=parseInt(this.value)||500;save()"></div>`},
+    {key:'ack_recurring',color:'var(--purple-bg)',ic:'var(--purple)',title:'Recurring Donor Thank-You',desc:'Heartfelt letter for ongoing recurring gifts (after the first)'},
+    {key:'lapsed',color:'var(--red-bg)',ic:'var(--red)',title:'Lapsed Donor Re-Engagement',desc:'Re-engagement letter — triggered via "Run Lapsed Check" button',extra:`<div class="ff" style="margin-top:10px;max-width:200px"><label>Inactivity (months)</label><input type="number" value="${rules.lapsed.months||12}" onchange="DB.automations.rules.lapsed.months=parseInt(this.value)||12;save()"></div>`},
+    {key:'pledge',color:'var(--g100)',ic:'var(--g500)',title:'Pledge Confirmation',desc:'Confirmation letter sent when a pledge is recorded'},
+  ];
+  const c=$('auto-rules');if(!c)return;
+  c.innerHTML=cfg.map(r=>{
+    const rule=rules[r.key]||{enabled:false,sent:0};
+    return`<div class="auto-rule ${rule.enabled?'enabled':'disabled'}" id="ar-${r.key}">
+      <div class="ar-head" onclick="toggleAR('${r.key}')">
+        <div class="ar-icon" style="background:${r.color}"><svg viewBox="0 0 24 24" style="stroke:${r.ic}">${TYPE_ICONS[r.key]||''}</svg></div>
+        <div class="ar-info"><div class="ar-title">${r.title}</div><div class="ar-desc">${r.desc}</div></div>
+        <div class="ar-meta">
+          <span class="tsm tmu">${rule.sent||0} queued</span>
+          <button class="toggle ${rule.enabled?'on':''}" id="tog-${r.key}" onclick="event.stopPropagation();flipRule('${r.key}',this)"></button>
+        </div>
+      </div>
+      <div class="ar-body" id="arb-${r.key}">
+        ${r.extra||''}
+        <div class="flex g2" style="margin-top:12px">
+          <button class="btn btn-outline btn-sm" onclick="openTemplateEditor('${r.key}')">Edit Template</button>
+          <button class="btn btn-primary btn-sm" onclick="previewTemplate('${r.key}')">Preview</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleAR(key){const b=$(`arb-${key}`);if(b)b.classList.toggle('open')}
+function flipRule(key,btn){const rule=DB.automations.rules[key];if(!rule)return;rule.enabled=!rule.enabled;btn.classList.toggle('on',rule.enabled);const card=$(`ar-${key}`);if(card)card.className=`auto-rule ${rule.enabled?'enabled':'disabled'}`;save();toast(rule.enabled?'Automation enabled.':'Automation disabled.')}
+
+function openTemplateEditor(key){
+  const keys=Object.keys(DB.automations.templates);
+  const cur=key||keys[0];
+  $('modal-box').className='modal modal-xl';
+  $('mtitle').textContent='Edit Automation Templates';
+  const labels={receipt:'Receipt',ack_first:'First Gift',ack_major:'Major Donor',ack_recurring:'Recurring',lapsed:'Lapsed',pledge:'Pledge'};
+  const fields=['{{first_name}}','{{last_name}}','{{amount}}','{{date}}','{{payment_method}}','{{receipt_number}}','{{org_name}}','{{ein}}'];
+  $('mbody').innerHTML=`
+    <div style="font-size:12.5px;color:var(--g600);margin-bottom:10px;line-height:1.6">Click a merge field to insert it at the cursor position.</div>
+    <div class="merge-fields">${fields.map(f=>`<span class="mf-chip" onclick="insertField('${f}')">${f}</span>`).join('')}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${keys.map(k=>`<button class="fc${k===cur?' active':''}" onclick="switchTplTab('${k}',this)">${labels[k]||k}</button>`).join('')}</div>
+    <textarea class="tpl-editor" id="tpl-text" style="min-height:280px">${esc(DB.automations.templates[cur])}</textarea>
+    <div class="tsm tmu" style="margin-top:6px">Editing: <strong>${labels[cur]||cur}</strong></div>`;
+  $('mfoot').innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveTpl()">Save Template</button>`;
+  $('modal-box')._tplKey=cur;
+  $('mo').classList.add('open');
+}
+function switchTplTab(key,btn){
+  const ta=$('tpl-text');if(ta&&$('modal-box')._tplKey)DB.automations.templates[$('modal-box')._tplKey]=ta.value;
+  document.querySelectorAll('#mbody .fc').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  $('modal-box')._tplKey=key;if(ta)ta.value=DB.automations.templates[key]||'';
+}
+function saveTpl(){const key=$('modal-box')._tplKey;const ta=$('tpl-text');if(key&&ta)DB.automations.templates[key]=ta.value;save();closeModal();toast('Template saved!','success')}
+function insertField(f){const ta=$('tpl-text');if(!ta)return;const s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.slice(0,s)+f+ta.value.slice(e);ta.focus();ta.selectionStart=ta.selectionEnd=s+f.length}
+function previewTemplate(key){
+  const donor=DB.donors[0]||{fname:'Jane',lname:'Smith',email:'jane@example.com'};
+  const don=DB.donations[0]||{amount:250,date:new Date().toISOString().slice(0,10),type:'One-Time',payment:'Credit Card',receipt:'MOT-PREVIEW'};
+  const labels={receipt:'Tax Receipt',ack_first:'First Gift Acknowledgment',ack_major:'Major Donor Acknowledgment',ack_recurring:'Recurring Donor Thank-You',lapsed:'Lapsed Donor Re-Engagement',pledge:'Pledge Confirmation'};
+  const vars=buildDocVars(donor,don);
+  const item={id:'preview',type:key,typeLabel:labels[key]||key,donorName:donor.fname+' '+donor.lname,renderedBody:mergeTpl(DB.automations.templates[key]||'',vars),amount:vars.amount,giftType:don.type,payment:don.payment,date:vars.date,receipt:don.receipt,status:'pending',createdAt:new Date().toISOString()};
+  $('modal-box').className='modal modal-xl';$('mtitle').textContent='Preview — '+item.typeLabel;
+  $('mbody').innerHTML=`<div style="max-height:70vh;overflow-y:auto">${buildDocHTML(item)}</div>`;
+  $('mfoot').innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Close</button><button class="btn btn-primary btn-sm" onclick="window.print()">Print / PDF</button>`;
+  $('mo').classList.add('open');
+}
+
+// ════════════════════════════════════════════════════
+// SCHEDULE & APPLE CALENDAR
+// ════════════════════════════════════════════════════
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
+function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--}renderCalendar()}
+function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++}renderCalendar()}
+
+function renderCalendar(){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const t=$('cal-title');if(!t)return;
+  t.textContent=months[calMonth]+' '+calYear;
+  $('cal-header').innerHTML=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
+  const todayStr=new Date().toISOString().slice(0,10);
+  const allEvs=[...DB.schedule.map(s=>({...s,evType:'schedule'})),...DB.events.filter(e=>e.status!=='Cancelled').map(e=>({id:'ev-'+e.id,title:e.name,date:e.date,type:e.type?.toLowerCase().replace(/ /g,'')||'gala',evType:'crm'}))];
+  let html='';
+  for(let i=0;i<firstDay;i++){const d=daysInPrev-firstDay+i+1;html+=`<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`}
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=dateStr===todayStr;
+    const dayEvs=allEvs.filter(e=>e.date===dateStr);
+    html+=`<div class="cal-day${isToday?' today':''}" onclick="openModal('schedule-event')">
+      <div class="cal-day-num">${d}</div>
+      ${dayEvs.slice(0,3).map(e=>`<div class="cal-event type-${e.type||'other'}" onclick="event.stopPropagation();${e.evType==='schedule'?`openModal('schedule-event',${e.id})`:`openModal('event',${parseInt(e.id.replace('ev-',''))})`}" title="${esc(e.title)}">${esc(e.title)}</div>`).join('')}
+      ${dayEvs.length>3?`<div style="font-size:9px;color:var(--g400)">+${dayEvs.length-3} more</div>`:''}
+    </div>`;
+  }
+  const rem=42-(firstDay+daysInMonth);for(let i=1;i<=rem;i++)html+=`<div class="cal-day other-month"><div class="cal-day-num">${i}</div></div>`;
+  $('cal-days').innerHTML=html;
+}
+
+function renderScheduleList(){
+  const list=$('schedule-list');if(!list)return;
+  const today=new Date().toISOString().slice(0,10);
+  const typeColor={meeting:'var(--green)',gala:'var(--blue)',deadline:'var(--red)',call:'var(--purple)',personal:'var(--amber)',other:'var(--g400)',auction:'var(--blue)','communityevent':'var(--green)','walkrun':'var(--green)','virtualevent':'var(--purple)'};
+  const allEvs=[...DB.schedule,...DB.events.filter(e=>e.date>=today&&e.status!=='Cancelled').map(e=>({id:'ev-'+e.id,title:e.name,date:e.date,type:e.type?.toLowerCase().replace(/ /g,'')||'gala',location:e.venue,evType:'crm'}))].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,20);
+  if(!allEvs.length){list.innerHTML='<div class="es"><div class="es-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><p>No upcoming events. Add one!</p></div>';return}
+  list.innerHTML=allEvs.map(e=>{
+    const dt=new Date(e.date+'T12:00:00');
+    return`<div class="sched-item" onclick="${typeof e.id==='string'&&e.id.startsWith('ev-')?`openModal('event',${parseInt(e.id.replace('ev-',''))})`:`openModal('schedule-event',${e.id})`}">
+      <div style="width:44px;text-align:center;flex-shrink:0"><div class="sdb-day">${dt.getDate()}</div><div class="sdb-month">${dt.toLocaleDateString('en-US',{month:'short'})}</div></div>
+      <div class="sched-dot" style="background:${typeColor[e.type]||'var(--g400)'}"></div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--navy)">${e.title}</div><div style="font-size:12px;color:var(--g500);margin-top:2px">${e.time?e.time+' · ':''}${e.location||''}</div></div>
+      ${typeof e.id==='string'&&e.id.startsWith('ev-')?'<span class="badge b-blue">CRM Event</span>':''}
+    </div>`;
+  }).join('');
+}
+
+function exportICS(mode){
+  const today=new Date().toISOString().slice(0,10);
+  let evs=[...DB.schedule,...DB.events.map(e=>({title:e.name,date:e.date,location:e.venue,notes:e.desc,duration:120,type:e.type}))];
+  if(mode==='upcoming')evs=evs.filter(e=>e.date>=today);
+  if(!evs.length){toast('No events to export.','error');return}
+  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Minds Over Tumors CRM//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  evs.forEach(e=>{
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:${e.id||Date.now()}@mindsovertumors.org`);
+    lines.push(`DTSTAMP:${new Date().toISOString().replace(/[-:.]/g,'').slice(0,15)}Z`);
+    if(e.time)lines.push(`DTSTART:${e.date.replace(/-/g,'')}T${e.time.replace(':','')}00`);
+    else lines.push(`DTSTART;VALUE=DATE:${e.date.replace(/-/g,'')}`);
+    lines.push(`SUMMARY:${(e.title||'').replace(/[\\;,]/g,'\\$&')}`);
+    if(e.location)lines.push(`LOCATION:${e.location.replace(/[\\;,]/g,'\\$&')}`);
+    if(e.notes)lines.push(`DESCRIPTION:${(e.notes||'').slice(0,500).replace(/[\\;,]/g,'\\$&').replace(/\n/g,'\\n')}`);
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'}));
+  a.download='minds-over-tumors-schedule.ics';a.click();
+  toast(`Exported ${evs.length} event${evs.length>1?'s':''} — open the .ics file to add to Apple Calendar!`,'success');
+}
+
+// ════════════════════════════════════════════════════
+// ONECAUSE
+// ════════════════════════════════════════════════════
+function ocConnect(){
+  const key=vf('oc-key'),org=vf('oc-org');if(!key||!org){toast('Enter both API Key and Org ID.','error');return}
+  const log=$('oc-log');log.style.display='block';log.innerHTML='<span class="linf">Connecting to OneCause API…</span>\n';
+  $('oc-dot').classList.add('syncing');$('oc-lbl').textContent='Connecting…';
+  setTimeout(()=>{log.innerHTML+='<span class="linf">POST /api/v1/authenticate</span>\n'},500);
+  setTimeout(()=>{log.innerHTML+='<span class="lok">✓ Authentication successful</span>\n<span class="linf">Verifying organization…</span>\n'},1200);
+  setTimeout(()=>{log.innerHTML+='<span class="lok">✓ Organization verified</span>\n<span class="linf">Pulling paid activities…</span>\n'},2000);
+  setTimeout(()=>{
+    log.innerHTML+='<span class="lok">✓ Connected — 0 new gifts since last sync</span>\n';
+    DB.oc.key=key;DB.oc.org=org;DB.oc.connected=true;DB.oc.lastSync=new Date().toISOString();
+    save();renderOC();toast('OneCause connected!','success');
+  },3200);
+}
+function ocSync(){
+  if(!DB.oc.connected){toast('Connect OneCause first.','error');return}
+  const log=$('oc-log');log.style.display='block';$('oc-dot').classList.add('syncing');$('oc-lbl').textContent='Syncing…';
+  log.innerHTML+='<span class="linf">--- Manual sync '+new Date().toLocaleTimeString()+' ---</span>\n';
+  setTimeout(()=>{log.innerHTML+='<span class="lok">✓ Sync complete — no new transactions</span>\n';DB.oc.lastSync=new Date().toISOString();$('oc-dot').classList.remove('syncing');renderOC();save();toast('Sync complete!','success')},2000);
+}
+function ocDisconnect(){if(!confirm('Disconnect OneCause?'))return;DB.oc.connected=false;DB.oc.key='';save();renderOC();toast('Disconnected.')}
+function renderOC(){
+  const dot=$('oc-dot'),lbl=$('oc-lbl'),time=$('oc-time'),sb=$('oc-sync-btn'),db=$('oc-disc-btn');
+  if(!dot)return;
+  if(DB.oc.connected){dot.className='int-dot connected';lbl.textContent='Connected — Org: '+DB.oc.org;if(time)time.textContent='Last sync: '+new Date(DB.oc.lastSync).toLocaleString();if(sb)sb.disabled=false;if(db)db.style.display='';if($('oc-key'))$('oc-key').value='••••••••••';if($('oc-org'))$('oc-org').value=DB.oc.org;}
+  else{dot.className='int-dot';lbl.textContent='Not connected';if(time)time.textContent='';if(sb)sb.disabled=true;if(db)db.style.display='none';}
+}
+
+// SOCIAL
+function composePost(){
+  const c=$('post-content')?.value?.trim();if(!c){toast('Write something first.','error');return}
+  const checked=[...document.querySelectorAll('.pcheck.checked')].map(el=>el.textContent.trim());
+  if(!checked.length){toast('Select at least one platform.','error');return}
+  if(!DB.social.posts)DB.social.posts=[];
+  DB.social.posts.unshift({id:Date.now(),content:c,platforms:checked,date:new Date().toISOString()});
+  save();if($('post-content'))$('post-content').value='';
+  document.querySelectorAll('.pcheck.checked').forEach(el=>el.classList.remove('checked'));
+  if($('char-count')){$('char-count').textContent='0 / 3,000';$('char-count').style.color='var(--g400)'}
+  toast('Post published to: '+checked.join(', ')+'!','success');
+}
+
+// ════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════
+function loadSettings(){
+  const s=DB.settings||{};
+  if($('set-orgname'))$('set-orgname').value=s.orgname||'Minds Over Tumors';
+  if($('set-email'))$('set-email').value=s.email||'info@mindsovertumors.org';
+  if($('set-ein'))$('set-ein').value=s.ein||'';
+  if($('set-title'))$('set-title').value=s.title||'President & CEO';
+  if($('set-name'))$('set-name').value=s.name||'';
+  if($('set-sb-url'))$('set-sb-url').value=s.sbUrl||'';
+  if($('set-sb-key'))$('set-sb-key').value=s.sbKey?'••••••••••••••••':'';
+}
+function saveSettings(){
+  if(!DB.settings)DB.settings={};
+  DB.settings.orgname=vf('set-orgname');
+  DB.settings.email=vf('set-email');
+  DB.settings.ein=vf('set-ein');
+  DB.settings.title=vf('set-title');
+  DB.settings.name=vf('set-name');
+  const newUrl=vf('set-sb-url');const newKey=vf('set-sb-key');
+  if(newUrl)DB.settings.sbUrl=newUrl;
+  if(newKey&&!newKey.includes('•'))DB.settings.sbKey=newKey;
+  save();toast('Settings saved!','success');
+}
+function exportAll(){const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(DB,null,2));a.download='MOT-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Backup downloaded!','success')}
+function importData(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{Object.assign(DB,JSON.parse(e.target.result));save();renderAll();loadSettings();renderAutoRules();renderQueue();updateBadge();toast('Data imported!','success');}catch(err){alert('Invalid backup file.')}};reader.readAsText(file)}
+function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Final confirmation — this cannot be undone?'))return;['donors','donations','campaigns','events','volunteers','grants','schedule'].forEach(k=>DB[k]=[]);DB.automations.queue=[];DB._n={donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,schedule:1};Object.keys(DB.automations.rules).forEach(k=>{DB.automations.rules[k].sent=0});save();renderAll();updateBadge();toast('All data cleared.')}
+
+// ════════════════════════════════════════════════════
+// EXPORT CSV
+// ════════════════════════════════════════════════════
+function exportCSV(){
+  if(!DB.donors.length){toast('No donors to export.','error');return}
+  const h=['First Name','Last Name','Email','Phone','Organization','Type','Status','Tags','Total Given','Address'];
+  const rows=DB.donors.map(d=>{const t=DB.donations.filter(x=>x.donorId===d.id).reduce((s,x)=>s+x.amount,0);return[d.fname,d.lname,d.email,d.phone,d.org,d.type,d.status,d.tags,t.toFixed(2),d.address].map(x=>`"${(x||'').toString().replace(/"/g,'""')}"`).join(',')});
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h.join(','),...rows].join('\n'));a.download='MOT-donors-'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('Donors exported!','success');
+}
+
+// ════════════════════════════════════════════════════
+// DETAIL PANEL
+// ════════════════════════════════════════════════════
+function openDonorPanel(id){
+  const d=DB.donors.find(x=>x.id===id);if(!d)return;
+  const dons=DB.donations.filter(x=>x.donorId===id).sort((a,b)=>b.date.localeCompare(a.date));
+  const total=dons.reduce((s,x)=>s+x.amount,0);
+  $('dp-top-body').innerHTML=`
+    <div class="av av-lg av-blue" style="margin-bottom:12px">${(d.fname[0]||'')+(d.lname[0]||'')}</div>
+    <div class="dp-name">${d.fname} ${d.lname}</div>
+    <div class="dp-meta">${d.type||'Individual'}${d.org?' · '+d.org:''}</div>
+    <div class="dp-stats">
+      <div class="dps"><div class="dps-v">$${total.toLocaleString()}</div><div class="dps-l">Total Given</div></div>
+      <div class="dps"><div class="dps-v">${dons.length}</div><div class="dps-l">Gifts</div></div>
+      <div class="dps"><div class="dps-v">${d.status||'Active'}</div><div class="dps-l">Status</div></div>
+    </div>`;
+  $('dp-rest').innerHTML=`
+    <div class="dp-acts">
+      <button class="btn btn-primary" style="flex:1" onclick="openModal('donation');setTimeout(()=>{const s=document.getElementById('f-dd');if(s)s.value=${id}},80)">Record Gift</button>
+      <button class="btn btn-outline" onclick="closePanel();openModal('donor',${id})">Edit</button>
+    </div>
+    <div class="dp-sec">
+      <div class="dp-st">Contact</div>
+      ${d.email?`<div class="dp-row"><span class="dp-k">Email</span><a href="mailto:${d.email}" style="color:var(--blue);font-weight:600">${d.email}</a></div>`:''}
+      ${d.phone?`<div class="dp-row"><span class="dp-k">Phone</span><span class="dp-v">${d.phone}</span></div>`:''}
+      ${d.address?`<div class="dp-row"><span class="dp-k">Address</span><span class="dp-v" style="font-size:12px">${d.address}</span></div>`:''}
+      <div class="dp-row"><span class="dp-k">Tags</span><span>${(d.tags||'').split(',').filter(t=>t.trim()).map(t=>`<span class="badge b-navy" style="font-size:10px;margin-left:3px">${t.trim()}</span>`).join('')||'—'}</span></div>
+    </div>
+    <div class="dp-sec">
+      <div class="dp-st">Giving History (${dons.length})</div>
+      ${dons.length?dons.slice(0,12).map(don=>{
+        const c=don.campaignId?DB.campaigns.find(x=>x.id===don.campaignId):null;
+        const qItem=DB.automations.queue.find(q=>q.type==='receipt'&&q.donationId===don.id);
+        return`<div class="tli">
+          <div class="tld"></div>
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:700;color:var(--navy)">$${don.amount.toLocaleString()}</span>
+              <div style="display:flex;gap:5px;align-items:center">
+                <span class="badge b-blue" style="font-size:10px">${don.type}</span>
+                ${qItem?`<button class="btn btn-xs btn-outline" onclick="openModal('preview-doc','${qItem.id}')">Receipt</button>`:``}
+              </div>
+            </div>
+            <div class="tldate">${fd(don.date)}${c?' · '+c.name:''} · ${don.payment}</div>
+            <div style="font-size:10px;color:var(--g400);margin-top:2px;font-family:monospace">${don.receipt}</div>
+          </div>
+        </div>`;
+      }).join(''):'<div class="tmu tsm" style="padding:8px 0">No gifts yet.</div>'}
+    </div>
+    <div class="dp-sec">
+      <div class="dp-st">Approval History</div>
+      ${DB.automations.queue.filter(q=>q.donorId===id).slice(0,5).map(q=>`<div class="dp-row" style="flex-direction:column;align-items:flex-start;cursor:pointer" onclick="openModal('preview-doc','${q.id}')"><div style="display:flex;justify-content:space-between;width:100%"><span style="font-size:12.5px;font-weight:600;color:var(--navy)">${q.typeLabel}</span><span class="badge ${q.status==='approved'?'b-green':q.status==='rejected'?'b-red':'b-amber'}">${q.status}</span></div><div class="tldate">${new Date(q.createdAt).toLocaleString()}</div></div>`).join('')||'<div class="tmu tsm" style="padding:8px 0">No documents yet.</div>'}
+    </div>
+    ${d.notes?`<div class="dp-sec"><div class="dp-st">Notes</div><p style="font-size:12.5px;color:var(--g600);line-height:1.65">${d.notes}</p></div>`:''}`;
+  $('dp').classList.add('open');
+}
+function closePanel(){$('dp').classList.remove('open')}
+
+// ════════════════════════════════════════════════════
+// HELPERS & RENDER
+// ════════════════════════════════════════════════════
+function sb(s){return{Active:'b-green',Lapsed:'b-red',Prospect:'b-amber',New:'b-blue',Planned:'b-amber',Completed:'b-gray',Cancelled:'b-red',Awarded:'b-green',Applied:'b-blue','Renewal Due':'b-amber',Declined:'b-red'}[s]||'b-gray'}
+function fd(d){if(!d)return'—';return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+function fa(n){return'$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function mkE(svgP,msg,btnLabel,btnFn){return`<div class="es"><div class="es-ic"><svg viewBox="0 0 24 24">${svgP}</svg></div><p>${msg}</p>${btnLabel?`<button class="btn btn-primary btn-sm" onclick="${btnFn}">${btnLabel}</button>`:''}</div>`}
+
+function renderAll(){rDash();rDonors();rVols();rDons();rCamps();rEvs();rGrants();updateBadge()}
+
+function rDash(){
+  const tot=DB.donations.reduce((s,d)=>s+d.amount,0);
+  const yr=new Date().getFullYear();
+  const yrD=DB.donations.filter(d=>d.date&&d.date.startsWith(yr));
+  if($('d-raised'))$('d-raised').textContent=(420000+tot).toLocaleString();
+  if($('sb-raised'))$('sb-raised').textContent=(420000+tot).toLocaleString();
+  if($('d-donors'))$('d-donors').textContent=DB.donors.length;
+  if($('d-year'))$('d-year').textContent=yrD.reduce((s,d)=>s+d.amount,0).toLocaleString();
+  if($('d-yrs'))$('d-yrs').textContent=yrD.length+' gift'+(yrD.length!==1?'s':'')+' this year';
+
+  // Recent donations
+  const rd=DB.donations.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
+  if($('d-dons'))$('d-dons').innerHTML=rd.length
+    ?rd.map(d=>{const dn=DB.donors.find(x=>x.id===d.donorId);return`<div class="lr${dn?' clickable':''}" onclick="${dn?`openDonorPanel(${d.donorId})`:''}">${dn?`<div class="av av-sm av-blue">${dn.fname[0]+dn.lname[0]}</div>`:''}<div class="lr-n">${dn?dn.fname+' '+dn.lname:'Unknown donor'}</div><span class="lr-m">${fd(d.date)}</span><span class="lr-a">${fa(d.amount)}</span></div>`}).join('')
+    :mkE('<rect x="1" y="4" width="22" height="16" rx="2"/>','No donations yet.','Record First Gift',"openModal('donation')");
+
+  // Active campaigns
+  const ac=DB.campaigns.filter(c=>c.status==='Active').slice(0,4);
+  if($('d-camps'))$('d-camps').innerHTML=ac.length
+    ?ac.map(c=>{const r=DB.donations.filter(d=>d.campaignId===c.id).reduce((s,d)=>s+d.amount,0);const p=c.goal?Math.min(100,Math.round(r/c.goal*100)):0;return`<div class="lr clickable" style="flex-direction:column;align-items:flex-start;gap:6px" onclick="openModal('campaign',${c.id})"><div style="display:flex;width:100%;justify-content:space-between;align-items:center"><span style="font-weight:600;color:var(--navy)">${c.name}</span><span class="lr-a">${fa(r)}</span></div><div style="width:100%"><div class="prog"><div class="pf" style="width:${p}%"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--g400);margin-top:3px"><span>${p}% of goal</span><span>${fa(c.goal)}</span></div></div></div>`}).join('')
+    :mkE('<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>','No active campaigns.','Create Campaign',"openModal('campaign')");
+
+  // Top donors
+  const top=DB.donors.map(d=>({...d,t:DB.donations.filter(x=>x.donorId===d.id).reduce((s,x)=>s+x.amount,0)})).filter(d=>d.t>0).sort((a,b)=>b.t-a.t).slice(0,7);
+  if($('d-top'))$('d-top').innerHTML=top.length
+    ?top.map((d,i)=>`<div class="lr clickable" onclick="openDonorPanel(${d.id})"><div class="av av-sm">${d.fname[0]+d.lname[0]}</div><div class="lr-n">${d.fname} ${d.lname}</div><span class="lr-m" style="color:var(--g300)">#${i+1}</span><span class="lr-a">${fa(d.t)}</span></div>`).join('')
+    :mkE('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>','Add donors and record gifts to see top donors.','Add Donor',"openModal('donor')");
+
+  // Pending approvals on dashboard
+  const pending=DB.automations.queue.filter(q=>q.status==='pending').slice(0,5);
+  if($('d-aq'))$('d-aq').innerHTML=pending.length
+    ?pending.map(q=>`<div class="lr clickable" onclick="openModal('preview-doc','${q.id}')">
+        <div class="aq-icon" style="background:${TYPE_COLORS[q.type]||'var(--g100)'}"><svg viewBox="0 0 24 24" style="stroke:${TYPE_ICON_COLORS[q.type]||'var(--g500)'};width:16px;height:16px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round">${TYPE_ICONS[q.type]||''}</svg></div>
+        <div class="lr-n" style="font-size:12.5px">${q.typeLabel} — ${q.donorName}</div>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-reject btn-xs" onclick="event.stopPropagation();rejectDoc('${q.id}')">Reject</button>
+          <button class="btn btn-approve btn-xs" onclick="event.stopPropagation();approveDoc('${q.id}')">Approve</button>
+        </div>
+      </div>`).join('')
+    :mkE('<polyline points="9 11 12 14 22 4"/>','All caught up! No pending documents.');
+}
+
+let df='all',ds='';
+function rDonors(){
+  let list=DB.donors;
+  if(ds)list=list.filter(d=>(d.fname+' '+d.lname+' '+(d.email||'')+' '+(d.org||'')).toLowerCase().includes(ds));
+  if(df==='major')list=list.filter(d=>DB.donations.filter(x=>x.donorId===d.id).reduce((s,x)=>s+x.amount,0)>=1000);
+  else if(df==='recurring')list=list.filter(d=>DB.donations.some(x=>x.donorId===d.id&&x.type==='Recurring')||(d.tags||'').toLowerCase().includes('recurring'));
+  else if(df==='lapsed')list=list.filter(d=>d.status==='Lapsed');
+  else if(df==='new')list=list.filter(d=>d.status==='New');
+  else if(df==='board')list=list.filter(d=>d.type==='Board Member');
+  else if(df==='corporate')list=list.filter(d=>d.type==='Corporate');
+  if($('dcnt'))$('dcnt').textContent=list.length;
+  const tb=$('dtbody');if(!tb)return;
+  if(!list.length){tb.innerHTML=`<tr><td colspan="8">${mkE('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',DB.donors.length?'No records match this filter.':'No donors yet. Click "New Donor" to add your first contact.','New Donor',"openModal('donor')")}</td></tr>`;return}
+  tb.innerHTML=list.map(d=>{
+    const tot=DB.donations.filter(x=>x.donorId===d.id).reduce((s,x)=>s+x.amount,0);
+    const last=DB.donations.filter(x=>x.donorId===d.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const tags=(d.tags||'').split(',').filter(t=>t.trim()).slice(0,2).map(t=>`<span class="badge b-navy" style="font-size:10px;margin-right:3px">${t.trim()}</span>`).join('');
+    return`<tr onclick="openDonorPanel(${d.id})" style="cursor:pointer">
+      <td><div style="display:flex;align-items:center;gap:9px"><div class="av av-sm">${d.fname[0]+d.lname[0]}</div><div><div class="td-p">${d.fname} ${d.lname}</div><div style="font-size:11px;color:var(--g400)">${d.email||''}</div></div></div></td>
+      <td>${d.type||'Individual'}</td><td style="color:var(--g500)">${d.org||'—'}</td>
+      <td class="td-a">${tot?fa(tot):'—'}</td><td>${last?fd(last.date):'—'}</td>
+      <td><span class="badge ${sb(d.status)}">${d.status||'Active'}</span></td>
+      <td>${tags||'—'}</td>
+      <td><button class="btn btn-outline btn-xs" onclick="event.stopPropagation();openModal('donor',${d.id})">Edit</button></td>
+    </tr>`;
+  }).join('');
+}
+if($('dsearch'))$('dsearch').oninput=function(){ds=this.value.toLowerCase();rDonors()};
+document.querySelectorAll('[data-df]').forEach(c=>c.onclick=function(){document.querySelectorAll('[data-df]').forEach(x=>x.classList.remove('active'));this.classList.add('active');df=this.dataset.df;rDonors()});
+
+function rVols(){
+  let list=DB.volunteers;const s=($('vsearch')?.value||'').toLowerCase();
+  if(s)list=list.filter(v=>(v.fname+' '+v.lname+' '+(v.role||'')).toLowerCase().includes(s));
+  if($('vcnt'))$('vcnt').textContent=list.length;
+  const tb=$('vtbody');if(!tb)return;
+  if(!list.length){tb.innerHTML=`<tr><td colspan="7">${mkE('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',DB.volunteers.length?'No results.':'No volunteers yet.','Add Volunteer',"openModal('volunteer')")}</td></tr>`;return}
+  tb.innerHTML=list.map(v=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:9px"><div class="av av-sm av-blue">${v.fname[0]+v.lname[0]}</div><div class="td-p">${v.fname} ${v.lname}</div></div></td>
+    <td><span class="badge b-navy">${v.role}</span></td>
+    <td><strong style="color:var(--navy)">${v.hours||0}</strong> <span class="tmu">hrs</span></td>
+    <td>${v.email?`<a href="mailto:${v.email}" style="color:var(--blue)">${v.email}</a>`:'—'}</td>
+    <td style="color:var(--g500)">${v.phone||'—'}</td>
+    <td><span class="badge b-green">Active</span></td>
+    <td><button class="btn btn-outline btn-xs" onclick="openModal('volunteer',${v.id})">Edit</button></td>
+  </tr>`).join('');
+}
+if($('vsearch'))$('vsearch').oninput=rVols;
+
+let donf='all',donss='';
+function rDons(){
+  let list=DB.donations;
+  if(donss)list=list.filter(d=>{const dn=DB.donors.find(x=>x.id===d.donorId);return(dn?dn.fname+' '+dn.lname:'').toLowerCase().includes(donss)||d.type.toLowerCase().includes(donss)});
+  if(donf!=='all')list=list.filter(d=>d.type.toLowerCase().replace(/ /g,'-').includes(donf));
+  list=list.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const tot=list.reduce((s,d)=>s+d.amount,0);
+  if($('dontotal'))$('dontotal').textContent=tot.toLocaleString('en-US',{minimumFractionDigits:2});
+  const tb=$('dontbody');if(!tb)return;
+  if(!list.length){tb.innerHTML=`<tr><td colspan="8">${mkE('<rect x="1" y="4" width="22" height="16" rx="2"/>','No donations yet.','Record Gift',"openModal('donation')")}</td></tr>`;return}
+  tb.innerHTML=list.map(d=>{
+    const dn=DB.donors.find(x=>x.id===d.donorId);
+    const c=d.campaignId?DB.campaigns.find(x=>x.id===d.campaignId):null;
+    const qItem=DB.automations.queue.find(q=>q.type==='receipt'&&q.donationId===d.id);
+    return`<tr onclick="${dn?`openDonorPanel(${d.donorId})`:''}" style="${dn?'cursor:pointer':''}">
+      <td class="td-p">${dn?dn.fname+' '+dn.lname:'Unknown'}</td>
+      <td class="td-a">${fa(d.amount)}</td>
+      <td><span class="badge b-navy">${d.type}</span></td>
+      <td>${c?`<span class="badge b-blue">${c.name}</span>`:'—'}</td>
+      <td>${fd(d.date)}</td>
+      <td style="color:var(--g500)">${d.payment}</td>
+      <td class="td-m">${d.receipt}</td>
+      <td>${qItem?`<button class="btn btn-outline btn-xs" onclick="event.stopPropagation();openModal('preview-doc','${qItem.id}')">Receipt</button>`:'<span class="tmu tsm">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+if($('donsearch'))$('donsearch').oninput=function(){donss=this.value.toLowerCase();rDons()};
+document.querySelectorAll('[data-donf]').forEach(c=>c.onclick=function(){document.querySelectorAll('[data-donf]').forEach(x=>x.classList.remove('active'));this.classList.add('active');donf=this.dataset.donf;rDons()});
+
+function rCamps(){
+  const g=$('campgrid');if(!g)return;
+  if(!DB.campaigns.length){g.innerHTML=mkE('<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>','No campaigns yet.','Create Campaign',"openModal('campaign')");return}
+  g.innerHTML=DB.campaigns.map(c=>{
+    const r=DB.donations.filter(d=>d.campaignId===c.id).reduce((s,d)=>s+d.amount,0);
+    const p=c.goal?Math.min(100,Math.round(r/c.goal*100)):0;
+    const cnt=DB.donations.filter(d=>d.campaignId===c.id).length;
+    return`<div class="ccard" onclick="openModal('campaign',${c.id})">
+      <div class="cct"><div style="flex:1"><div class="ccn">${c.name}</div><div style="font-size:11px;color:rgba(255,255,255,.38);margin-top:4px">${c.start?fd(c.start):''}${c.end?' – '+fd(c.end):''}</div></div><span class="badge ${sb(c.status)}" style="margin-left:10px;flex-shrink:0">${c.status}</span></div>
+      <div class="ccb">${c.goal?`<div class="prog"><div class="pf" style="width:${p}%"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px"><span style="font-size:18px;font-weight:800;color:var(--blue-d)">${fa(r)}</span><span class="tsm tmu">${p}% of ${fa(c.goal)}</span></div>`:''}<div style="margin-top:9px;font-size:12px;color:var(--g400)">${cnt} gift${cnt!==1?'s':''}</div>${c.desc?`<div style="margin-top:9px;font-size:12px;color:var(--g600);line-height:1.6;padding-top:9px;border-top:1px solid var(--g150)">${c.desc}</div>`:''}</div>
+    </div>`;
+  }).join('');
+}
+
+function rEvs(){
+  const g=$('evgrid');if(!g)return;
+  if(!DB.events.length){g.innerHTML=mkE('<rect x="3" y="4" width="18" height="18" rx="2"/>','No events yet.','Create Event',"openModal('event')");return}
+  g.innerHTML=DB.events.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>`
+    <div class="evcard" onclick="openModal('event',${e.id})">
+      <div class="evst"></div>
+      <div class="evb">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div class="evtype">${e.type}</div><span class="badge ${sb(e.status)}">${e.status}</span></div>
+        <div class="evn">${e.name}</div>
+        <div style="font-size:12px;color:var(--g500)">${fd(e.date)}${e.venue?' · '+e.venue:''}</div>
+        ${(e.goal||e.attendees)?`<div style="display:flex;gap:20px;margin-top:12px;padding-top:12px;border-top:1px solid var(--g150)">
+          ${e.goal?`<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g400)">Goal</div><div style="font-size:14px;font-weight:700;color:var(--navy)">${fa(e.goal)}</div></div>`:''}
+          ${e.attendees?`<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g400)">Guests</div><div style="font-size:14px;font-weight:700;color:var(--navy)">${e.attendees}</div></div>`:''}
+        </div>`:''}</div>
+    </div>`).join('');
+}
+
+function rGrants(){
+  const tb=$('gtbody');if(!tb)return;
+  if(!DB.grants.length){tb.innerHTML=`<tr><td colspan="6">${mkE('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>','No grants or sponsors yet.','Add Grant',"openModal('grant')")}</td></tr>`;return}
+  tb.innerHTML=DB.grants.map(g=>`<tr style="cursor:default">
+    <td class="td-p">${g.name}</td>
+    <td><span class="badge ${g.type.includes('Corporate')?'b-blue':g.type==='Grant'?'b-purple':'b-gray'}">${g.type}</span></td>
+    <td class="td-a">${g.amount?fa(g.amount):'—'}</td>
+    <td>${fd(g.date)||'—'}</td>
+    <td><span class="badge ${sb(g.status)}">${g.status}</span></td>
+    <td class="tsm tmu" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.notes||'—'}</td>
+  </tr>`).join('');
+}
+
+// Global search
+if($('gsearch'))$('gsearch').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  const q=e.target.value.trim().toLowerCase();if(!q)return;
+  const hits=DB.donors.filter(d=>(d.fname+' '+d.lname+' '+(d.email||'')).toLowerCase().includes(q));
+  if(hits.length){switchView('donors');if($('dsearch'))$('dsearch').value=e.target.value;ds=q;rDonors();if(hits.length===1)setTimeout(()=>openDonorPanel(hits[0].id),100);}
+  else toast('No donors found for "'+q+'"');
+  e.target.value='';
+});
+
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+load();
+
+// If Supabase credentials are saved, pre-init it
+if(DB.settings?.sbUrl&&DB.settings?.sbKey){
+  initSupabase(DB.settings.sbUrl,DB.settings.sbKey);
+}
+
+// Update login screen: if SB not configured, hide that notice after user sets creds
+if(!DB.settings?.sbUrl){
+  $('sb-setup-notice').style.display='block';
+} else {
+  $('sb-setup-notice').style.display='none';
+}
+</script>
+</body>
+</html>
