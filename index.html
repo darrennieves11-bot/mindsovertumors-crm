@@ -1193,19 +1193,51 @@ async function inviteUser(){
 // When Supabase is connected, we read/write there.
 // Otherwise we use localStorage (demo mode).
 // ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// FIELD NAME MAPPING: JS (camelCase) ↔ Supabase (snake_case)
+// The original CRM stored data with camelCase JS field names but
+// the SQL schema uses snake_case. These maps fix that on write/read.
+// ════════════════════════════════════════════════════
+const _FIELD_MAP = {
+  donors: { created: 'created_at' },
+  donations: { donorId: 'donor_id', campaignId: 'campaign_id', created: 'created_at' },
+  campaigns: { start: 'start_date', end: 'end_date', desc: 'description', created: 'created_at' },
+  events: { desc: 'notes', created: 'created_at' },
+  volunteers: { created: 'created_at' },
+  grants: { date: 'deadline', created: 'created_at' },
+  schedule: { created: 'created_at' },
+  projects: {} // Already snake_case
+};
+function _toSb(table, obj){
+  const m = _FIELD_MAP[table] || {};
+  const out = {};
+  for(const k in obj){ out[m[k] || k] = obj[k] }
+  return out;
+}
+function _fromSb(table, obj){
+  const m = _FIELD_MAP[table] || {};
+  const reverse = {};
+  for(const k in m){ reverse[m[k]] = k }
+  const out = {};
+  for(const k in obj){ out[reverse[k] || k] = obj[k] }
+  return out;
+}
+
 async function sbSave(table,obj){
   if(!supabase||demoMode)return;
-  await supabase.from(table).upsert(obj);
+  const{error} = await supabase.from(table).upsert(_toSb(table,obj));
+  if(error)console.error('Supabase save error ('+table+'):', error.message, error.details||'');
 }
 async function sbDelete(table,id){
   if(!supabase||demoMode)return;
-  await supabase.from(table).delete().eq('id',id);
+  const{error} = await supabase.from(table).delete().eq('id',id);
+  if(error)console.error('Supabase delete error ('+table+'):', error.message);
 }
 async function sbLoad(table){
   if(!supabase||demoMode)return null;
   const{data,error}=await supabase.from(table).select('*').order('created_at',{ascending:false});
-  if(error)return null;
-  return data;
+  if(error){console.error('Supabase load error ('+table+'):', error.message);return null}
+  return data.map(row => _fromSb(table, row));
 }
 
 async function loadFromSupabase(){
