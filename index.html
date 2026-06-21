@@ -746,8 +746,23 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 
       <!-- ONECAUSE -->
       <div class="view" id="view-onecause">
+        <div class="int-card" style="border-left:3px solid var(--blue)">
+          <div class="flex jb aic" style="margin-bottom:4px"><h3>Upload OneCause Report</h3><span class="badge b-green">Available Now</span></div>
+          <p>Export a CSV report from OneCause (donors, gifts, or event report). Upload it here and the CRM will create or update donors, record each gift, and link everything together. No API connection required.</p>
+          <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:14px 16px;margin:12px 0;font-size:12.5px;color:var(--g600);line-height:1.7">
+            <strong style="color:var(--navy);display:block;margin-bottom:6px">How it works:</strong>
+            1. In OneCause, export your event's report as CSV (donors with gifts)<br>
+            2. Click the button below and select your CSV file<br>
+            3. Review the preview, optionally assign to a campaign, and click Import
+          </div>
+          <div class="flex g2 aic" style="flex-wrap:wrap">
+            <label class="btn btn-primary" style="cursor:pointer">Choose CSV File<input type="file" id="oc-csv-file" accept=".csv,text/csv" style="display:none" onchange="ocCsvLoad(this)"></label>
+            <span class="tsm" style="color:var(--g500)" id="oc-csv-status">No file selected</span>
+          </div>
+        </div>
+
         <div class="int-card">
-          <div class="flex jb aic" style="margin-bottom:4px"><h3>OneCause Integration</h3><span class="badge b-blue">API Ready</span></div>
+          <div class="flex jb aic" style="margin-bottom:4px"><h3>OneCause API Integration</h3><span class="badge b-gray">Requires API Key</span></div>
           <p>Connect your OneCause account to automatically sync event gifts, auction bids, ticket purchases, and supporter data. Get your API Key and Organization ID from your OneCause account manager.</p>
           <div class="int-status">
             <div class="int-dot" id="oc-dot"></div>
@@ -1889,6 +1904,266 @@ function ocSync(){
   setTimeout(()=>{log.innerHTML+='<span class="lok">✓ Sync complete — no new transactions</span>\n';DB.oc.lastSync=new Date().toISOString();$('oc-dot').classList.remove('syncing');renderOC();save();toast('Sync complete!','success')},2000);
 }
 function ocDisconnect(){if(!confirm('Disconnect OneCause?'))return;DB.oc.connected=false;DB.oc.key='';save();renderOC();toast('Disconnected.')}
+
+// ════════════════════════════════════════════════════
+// ONECAUSE CSV IMPORT
+// ════════════════════════════════════════════════════
+function ocParseCSV(text){
+  const rows=[];let cur=[],field='',inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'&&text[i+1]==='"'){field+='"';i++}
+      else if(c==='"'){inQ=false}
+      else{field+=c}
+    }else{
+      if(c==='"'){inQ=true}
+      else if(c===','){cur.push(field);field=''}
+      else if(c==='\n'||c==='\r'){
+        if(field!==''||cur.length){cur.push(field);rows.push(cur);cur=[];field=''}
+        if(c==='\r'&&text[i+1]==='\n')i++;
+      }else{field+=c}
+    }
+  }
+  if(field!==''||cur.length){cur.push(field);rows.push(cur)}
+  return rows.filter(r=>r.some(x=>x&&x.trim()));
+}
+
+function ocNormHeader(h){return (h||'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+
+function ocMapColumns(headers){
+  const map={};
+  const aliases={
+    fname:['firstname','first','fname','givenname'],
+    lname:['lastname','last','lname','surname','familyname'],
+    fullname:['fullname','name','donor','donorname','supportername','supporter','attendee','attendeename','bidder','bidername'],
+    email:['email','emailaddress','donoremail','supporteremail'],
+    phone:['phone','phonenumber','mobile','cell','phonenumber1','primaryphone'],
+    org:['organization','company','org','business','employer','companyname'],
+    address:['address','street','addressline1','streetaddress','address1','mailingaddress'],
+    city:['city','town'],
+    state:['state','province','region'],
+    zip:['zip','postalcode','zipcode','postal','postcode'],
+    amount:['amount','total','totaldonated','giftamount','donationamount','totalgiven','totalraised','paymentamount','transactionamount','grandtotal','raised','contributionamount'],
+    date:['date','giftdate','transactiondate','donationdate','paiddate','paymentdate','dateofgift'],
+    type:['gifttype','transactiontype','category','itemtype','paymenttype','donationtype'],
+    method:['paymentmethod','method','payment','paymentprocessor','processor'],
+    campaign:['campaign','fund','designation','package','itemname','fundname','campaignname','event','eventname']
+  };
+  headers.forEach((h,i)=>{
+    const n=ocNormHeader(h);
+    for(const key in aliases){
+      if(aliases[key].includes(n)){
+        if(map[key]===undefined)map[key]=i;
+        break;
+      }
+    }
+  });
+  return map;
+}
+
+let _ocImportData=null;
+
+async function ocCsvLoad(input){
+  const file=input.files[0];
+  if(!file){return}
+  $('oc-csv-status').textContent=file.name+' — parsing…';
+  try{
+    const text=await file.text();
+    const rows=ocParseCSV(text);
+    if(rows.length<2){toast('CSV is empty or has no data rows.','error');$('oc-csv-status').textContent='Error reading file';return}
+    const headers=rows[0];
+    const data=rows.slice(1);
+    const map=ocMapColumns(headers);
+    if(map.amount===undefined&&map.fname===undefined&&map.lname===undefined&&map.fullname===undefined&&map.email===undefined){
+      toast('Could not detect any usable columns. Check that your CSV has standard headers like Name, Email, Amount.','error');
+      $('oc-csv-status').textContent='Could not detect columns';
+      return;
+    }
+    _ocImportData={headers,data,map,fileName:file.name};
+    ocShowImportPreview();
+  }catch(e){
+    console.error(e);
+    toast('Could not read CSV file.','error');
+    $('oc-csv-status').textContent='Error: '+e.message;
+  }
+}
+
+function ocShowImportPreview(){
+  const{headers,data,map,fileName}=_ocImportData;
+  // Calculate stats
+  let totalAmount=0,withAmount=0,newDonors=0,existingDonors=0;
+  const seenEmails=new Set();
+  data.forEach(row=>{
+    let amt=0;
+    if(map.amount!==undefined){amt=parseFloat((row[map.amount]||'').replace(/[$,\s]/g,''))||0}
+    if(amt>0){totalAmount+=amt;withAmount++}
+    const email=(map.email!==undefined?row[map.email]:'').trim().toLowerCase();
+    let fname='',lname='';
+    if(map.fname!==undefined)fname=(row[map.fname]||'').trim();
+    if(map.lname!==undefined)lname=(row[map.lname]||'').trim();
+    if(!fname&&!lname&&map.fullname!==undefined){
+      const parts=(row[map.fullname]||'').trim().split(/\s+/);
+      fname=parts[0]||'';lname=parts.slice(1).join(' ')||'';
+    }
+    if(!fname&&!lname&&!email)return;
+    const key=email||(fname+' '+lname).toLowerCase().trim();
+    if(seenEmails.has(key))return;
+    seenEmails.add(key);
+    let existing=null;
+    if(email)existing=DB.donors.find(d=>(d.email||'').toLowerCase()===email);
+    if(!existing&&(fname||lname))existing=DB.donors.find(d=>((d.fname||'')+' '+(d.lname||'')).toLowerCase().trim()===(fname+' '+lname).toLowerCase().trim());
+    if(existing)existingDonors++;else newDonors++;
+  });
+
+  const detected=Object.keys(map);
+  const campaignOpts=['<option value="">— No campaign —</option>',...DB.campaigns.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`),'<option value="__new__">+ Create new campaign…</option>'].join('');
+
+  $('modal-box').className='modal modal-lg';
+  $('modal-title').textContent='Import OneCause Report';
+  $('modal-body').innerHTML=`
+    <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:12.5px;color:var(--g600);margin-bottom:6px">${esc(fileName)} · ${data.length} rows · ${detected.length} columns detected</div>
+      <div style="font-size:12.5px;color:var(--g600)"><strong>Detected:</strong> ${detected.join(', ')||'none'}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--r);padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--blue-dd)">${newDonors}</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--g500);margin-top:4px">New Donors</div>
+      </div>
+      <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--g700)">${existingDonors}</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--g500);margin-top:4px">Existing Donors</div>
+      </div>
+      <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--g700)">${withAmount}</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--g500);margin-top:4px">Gifts</div>
+      </div>
+      <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--navy)">$${totalAmount.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--g500);margin-top:4px">Total</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="ff"><label>Assign all gifts to campaign (optional)</label>
+        <select id="oc-import-campaign" onchange="if(this.value==='__new__'){const n=prompt('New campaign name:');if(n){this.dataset.newname=n;this.innerHTML='<option selected>'+n+' (new)</option>'}else{this.value=''}}">${campaignOpts}</select>
+      </div>
+      <div class="ff"><label>Default gift type for blank rows</label>
+        <select id="oc-import-type">
+          <option value="One-Time">One-Time</option>
+          <option value="Pledge">Pledge</option>
+          <option value="In-Kind">In-Kind</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;font-size:12.5px;font-weight:700;color:var(--navy)">Preview (first 5 rows)</div>
+    <div style="border:1px solid var(--g200);border-radius:var(--r);overflow:auto;max-height:240px">
+      <table style="width:100%;font-size:11.5px">
+        <thead style="background:var(--g50);border-bottom:1px solid var(--g200);position:sticky;top:0">
+          <tr>${['Name','Email','Amount','Date','Type'].map(h=>`<th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--navy)">${h}</th>`).join('')}</tr>
+        </thead>
+        <tbody>${data.slice(0,5).map(row=>{
+          let fname=map.fname!==undefined?row[map.fname]||'':'';
+          let lname=map.lname!==undefined?row[map.lname]||'':'';
+          if(!fname&&!lname&&map.fullname!==undefined){const p=(row[map.fullname]||'').trim().split(/\s+/);fname=p[0]||'';lname=p.slice(1).join(' ')||''}
+          const em=map.email!==undefined?row[map.email]||'':'';
+          const am=map.amount!==undefined?row[map.amount]||'':'';
+          const dt=map.date!==undefined?row[map.date]||'':'';
+          const tp=map.type!==undefined?row[map.type]||'':'';
+          return `<tr style="border-bottom:1px solid var(--g100)">
+            <td style="padding:8px 10px">${esc((fname+' '+lname).trim())}</td>
+            <td style="padding:8px 10px;color:var(--g500)">${esc(em)}</td>
+            <td style="padding:8px 10px;font-weight:600">${esc(am)}</td>
+            <td style="padding:8px 10px;color:var(--g500)">${esc(dt)}</td>
+            <td style="padding:8px 10px;color:var(--g500)">${esc(tp)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>
+  `;
+  $('modal-foot').innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="ocDoImport()">Import ${newDonors+existingDonors} Donors · ${withAmount} Gifts</button>`;
+  $('mo').classList.add('open');
+}
+
+async function ocDoImport(){
+  if(!_ocImportData){closeModal();return}
+  const{data,map}=_ocImportData;
+  const campaignSel=$('oc-import-campaign');
+  const defaultType=$('oc-import-type').value||'One-Time';
+  let campaignId=null;
+  if(campaignSel.value==='__new__'||campaignSel.dataset.newname){
+    const newName=campaignSel.dataset.newname;
+    if(newName){
+      const newCamp={id:nid('campaigns'),name:newName,goal:0,status:'Active',start:new Date().toISOString().slice(0,10),end:'',desc:'Created via OneCause import'};
+      DB.campaigns.push(newCamp);
+      await sbSave('campaigns',newCamp);
+      campaignId=newCamp.id;
+    }
+  }else if(campaignSel.value){campaignId=parseInt(campaignSel.value)}
+
+  let newDonors=0,updatedDonors=0,giftsCreated=0,skipped=0;
+  for(const row of data){
+    let fname=map.fname!==undefined?(row[map.fname]||'').trim():'';
+    let lname=map.lname!==undefined?(row[map.lname]||'').trim():'';
+    if(!fname&&!lname&&map.fullname!==undefined){const p=(row[map.fullname]||'').trim().split(/\s+/);fname=p[0]||'';lname=p.slice(1).join(' ')||''}
+    const email=(map.email!==undefined?row[map.email]||'':'').trim().toLowerCase();
+    const phone=map.phone!==undefined?(row[map.phone]||'').trim():'';
+    const org=map.org!==undefined?(row[map.org]||'').trim():'';
+    if(!fname&&!lname&&!email&&!org){skipped++;continue}
+    // Build address from parts if present
+    const addrParts=[];
+    if(map.address!==undefined&&row[map.address])addrParts.push(row[map.address].trim());
+    if(map.city!==undefined&&row[map.city])addrParts.push(row[map.city].trim());
+    if(map.state!==undefined&&row[map.state])addrParts.push(row[map.state].trim());
+    if(map.zip!==undefined&&row[map.zip])addrParts.push(row[map.zip].trim());
+    const address=addrParts.join(', ');
+    // Find or create donor
+    let donor=null;
+    if(email)donor=DB.donors.find(d=>(d.email||'').toLowerCase()===email);
+    if(!donor&&(fname||lname))donor=DB.donors.find(d=>((d.fname||'')+' '+(d.lname||'')).toLowerCase().trim()===(fname+' '+lname).toLowerCase().trim());
+    if(!donor){
+      donor={id:nid('donors'),fname:fname||'',lname:lname||'',email:email||'',phone:phone||'',org:org||'',type:org?'Corporate':'Individual',status:'Active',tags:'OneCause Import',address:address||'',notes:'Imported from OneCause ('+(new Date().toISOString().slice(0,10))+')',created:new Date().toISOString()};
+      DB.donors.push(donor);
+      await sbSave('donors',donor);
+      newDonors++;
+    }else{
+      let changed=false;
+      if(!donor.email&&email){donor.email=email;changed=true}
+      if(!donor.phone&&phone){donor.phone=phone;changed=true}
+      if(!donor.org&&org){donor.org=org;changed=true}
+      if(!donor.address&&address){donor.address=address;changed=true}
+      if(changed){await sbSave('donors',donor);updatedDonors++}
+    }
+    // Create donation
+    let amt=0;
+    if(map.amount!==undefined)amt=parseFloat((row[map.amount]||'').replace(/[$,\s]/g,''))||0;
+    if(amt>0){
+      let giftDate=map.date!==undefined?(row[map.date]||'').trim():'';
+      // Try to normalize date
+      if(giftDate){
+        const d=new Date(giftDate);
+        if(!isNaN(d.getTime()))giftDate=d.toISOString().slice(0,10);
+      }
+      if(!giftDate)giftDate=new Date().toISOString().slice(0,10);
+      const giftType=(map.type!==undefined?(row[map.type]||'').trim():'')||defaultType;
+      const method=(map.method!==undefined?(row[map.method]||'').trim():'')||'OneCause';
+      const rec={id:nid('donations'),donorId:donor.id,amount:amt,date:giftDate,type:giftType,campaignId:campaignId,payment:method,notes:'Imported from OneCause',receipt:'MOT-'+String(Date.now()+giftsCreated).slice(-7)};
+      DB.donations.push(rec);
+      await sbSave('donations',rec);
+      giftsCreated++;
+    }
+  }
+  save();
+  closeModal();
+  $('oc-csv-status').textContent='Imported '+_ocImportData.fileName;
+  _ocImportData=null;
+  renderAll();
+  let msg=`Imported ${newDonors} new donors`;
+  if(updatedDonors)msg+=`, updated ${updatedDonors}`;
+  msg+=`, recorded ${giftsCreated} gifts`;
+  if(skipped)msg+=` (${skipped} empty rows skipped)`;
+  toast(msg+'.','success');
+}
 function renderOC(){
   const dot=$('oc-dot'),lbl=$('oc-lbl'),time=$('oc-time'),sb=$('oc-sync-btn'),db=$('oc-disc-btn');
   if(!dot)return;
