@@ -1089,7 +1089,12 @@ async function connectSupabase(){
   const ok=await initSupabase(url,key);
   if(!ok){$('sb-conn-status').textContent='Failed to load Supabase client.';toast('Connection failed. Check your URL and key.','error');return}
   const{error}=await supabase.from('donors').select('id').limit(1);
-  if(error&&error.code!=='PGRST116'&&error.code!=='42P01'){
+  // Accept any "table doesn't exist" error — that just means the user hasn't run the SQL schema yet
+  const tableMissing = error && (
+    error.code==='PGRST116' || error.code==='42P01' || error.code==='PGRST205' ||
+    (error.message && /does not exist|not found|schema cache/i.test(error.message))
+  );
+  if(error && !tableMissing){
     $('sb-conn-status').textContent='Error: '+error.message;
     toast('Connection error — make sure your project is active.','error');return;
   }
@@ -1114,7 +1119,11 @@ async function ensureSupabaseTables(){
   // We show instructions if tables don't exist yet.
   if(!supabase)return;
   const{error}=await supabase.from('donors').select('id').limit(1);
-  if(error?.code==='42P01'){
+  const tableMissing = error && (
+    error.code==='42P01' || error.code==='PGRST205' ||
+    (error.message && /does not exist|not found|schema cache/i.test(error.message))
+  );
+  if(tableMissing){
     openModal('sb-setup');
   }
 }
