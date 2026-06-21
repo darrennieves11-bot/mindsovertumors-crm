@@ -972,7 +972,7 @@ async function initSupabase(url,key){
     try{
       const{createClient}=await import(cdn);
       supabase=createClient(url,key,{
-        auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'mot-crm-auth'}
+        auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
       });
       return true;
     }catch(e){
@@ -2467,8 +2467,9 @@ async function ocDoImport(){
     const allDonors = [...newDonorRecs, ...updatedDonorRecs].map(d => _toSb('donors', d));
     const{error} = await supabase.from('donors').upsert(allDonors);
     if(error){
-      console.error('Batch donor upsert failed:', error);
-      toast('Donor import failed: '+error.message,'error');
+      console.error('Batch donor upsert FAILED. Full error:', JSON.stringify(error,null,2));
+      console.error('First donor record sent:', JSON.stringify(allDonors[0],null,2));
+      toast('Donor import failed: '+(error.message||error.hint||'unknown error')+' — check console','error');
       save();renderAll();
       return;
     }
