@@ -914,7 +914,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 </div>
 <div id="toast"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ════════════════════════════════════════════════════
 // SUPABASE CLIENT (loaded dynamically when credentials set)
 // ════════════════════════════════════════════════════
@@ -2201,4 +2201,14 @@ save();
 
 initSupabase(HARDCODED_SB_URL, HARDCODED_SB_KEY);
 
+// Hide the "Supabase not yet configured" notice since credentials are baked in
+const sbNotice = document.getElementById('sb-setup-notice');
+if(sbNotice) sbNotice.style.display = 'none';
+
 // Update login screen: if SB not configured, hide that notice after user sets cred
+// Render initial view
+if(typeof renderAll==='function')renderAll();
+if(typeof switchView==='function')switchView('dashboard');
+</script>
+</body>
+</html>
