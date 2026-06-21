@@ -2298,8 +2298,8 @@ function ocShowImportPreview(){
   const campaignOpts=['<option value="">— No campaign —</option>',...DB.campaigns.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`),'<option value="__new__">+ Create new campaign…</option>'].join('');
 
   $('modal-box').className='modal modal-lg';
-  $('modal-title').textContent='Import OneCause Report';
-  $('modal-body').innerHTML=`
+  $('mtitle').textContent='Import OneCause Report';
+  $('mbody').innerHTML=`
     <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
       <div style="font-size:12.5px;color:var(--g600);margin-bottom:6px">${esc(fileName)} · ${data.length} rows · ${detected.length} columns detected</div>
       <div style="font-size:12.5px;color:var(--g600)"><strong>Detected:</strong> ${detected.join(', ')||'none'}</div>
@@ -2359,7 +2359,7 @@ function ocShowImportPreview(){
       </table>
     </div>
   `;
-  $('modal-foot').innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="ocDoImport()">Import ${newDonors+existingDonors} Donors · ${withAmount} Gifts</button>`;
+  $('mfoot').innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="ocDoImport()">Import ${newDonors+existingDonors} Donors · ${withAmount} Gifts</button>`;
   $('mo').classList.add('open');
 }
 
