@@ -971,7 +971,9 @@ async function initSupabase(url,key){
   for(const cdn of cdns){
     try{
       const{createClient}=await import(cdn);
-      supabase=createClient(url,key);
+      supabase=createClient(url,key,{
+        auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'mot-crm-auth'}
+      });
       return true;
     }catch(e){
       console.warn('Supabase CDN failed:',cdn,e.message);
@@ -1211,7 +1213,12 @@ const _FIELD_MAP = {
 function _toSb(table, obj){
   const m = _FIELD_MAP[table] || {};
   const out = {};
-  for(const k in obj){ out[m[k] || k] = obj[k] }
+  for(const k in obj){
+    let val = obj[k];
+    // Convert empty strings to null (Postgres rejects "" for date/numeric/timestamptz)
+    if(val === '') val = null;
+    out[m[k] || k] = val;
+  }
   return out;
 }
 function _fromSb(table, obj){
@@ -2400,11 +2407,13 @@ async function ocDoImport(){
   const{data,map}=_ocImportData;
   const campaignSel=$('oc-import-campaign');
   const defaultType=$('oc-import-type').value||'One-Time';
+
+  // Step 1: Create campaign if requested
   let campaignId=null;
   if(campaignSel.value==='__new__'||campaignSel.dataset.newname){
     const newName=campaignSel.dataset.newname;
     if(newName){
-      const newCamp={id:nid('campaigns'),name:newName,goal:0,status:'Active',start:new Date().toISOString().slice(0,10),end:'',desc:'Created via OneCause import'};
+      const newCamp={id:nid('campaigns'),name:newName,goal:0,status:'Active',start:new Date().toISOString().slice(0,10),end:null,desc:'Created via OneCause import'};
       DB.campaigns.push(newCamp);
       await sbSave('campaigns',newCamp);
       campaignId=newCamp.id;
@@ -2412,15 +2421,21 @@ async function ocDoImport(){
   }else if(campaignSel.value){campaignId=parseInt(campaignSel.value)}
 
   let newDonors=0,updatedDonors=0,giftsCreated=0,skipped=0,duplicateGifts=0;
-  for(const row of data){
+  const newDonorRecs=[];
+  const updatedDonorRecs=[];
+  const newDonationRecs=[];
+  const rowDonorMap=[]; // row index → donor
+
+  // Step 2: First pass — process all rows locally (no network calls yet)
+  for(let i=0;i<data.length;i++){
+    const row=data[i];
     let fname=map.fname!==undefined?(row[map.fname]||'').trim():'';
     let lname=map.lname!==undefined?(row[map.lname]||'').trim():'';
     if(!fname&&!lname&&map.fullname!==undefined){const p=(row[map.fullname]||'').trim().split(/\s+/);fname=p[0]||'';lname=p.slice(1).join(' ')||''}
     const email=(map.email!==undefined?row[map.email]||'':'').trim().toLowerCase();
     const phone=map.phone!==undefined?(row[map.phone]||'').trim():'';
     const org=map.org!==undefined?(row[map.org]||'').trim():'';
-    if(!fname&&!lname&&!email&&!org){skipped++;continue}
-    // Build address from parts if present
+    if(!fname&&!lname&&!email&&!org){skipped++;rowDonorMap[i]=null;continue}
     const addrParts=[];
     if(map.address!==undefined&&row[map.address])addrParts.push(row[map.address].trim());
     if(map.city!==undefined&&row[map.city])addrParts.push(row[map.city].trim());
@@ -2434,7 +2449,7 @@ async function ocDoImport(){
     if(!donor){
       donor={id:nid('donors'),fname:fname||'',lname:lname||'',email:email||'',phone:phone||'',org:org||'',type:org?'Corporate':'Individual',status:'Active',tags:'OneCause Import',address:address||'',notes:'Imported from OneCause ('+(new Date().toISOString().slice(0,10))+')',created:new Date().toISOString()};
       DB.donors.push(donor);
-      await sbSave('donors',donor);
+      newDonorRecs.push(donor);
       newDonors++;
     }else{
       let changed=false;
@@ -2442,37 +2457,62 @@ async function ocDoImport(){
       if(!donor.phone&&phone){donor.phone=phone;changed=true}
       if(!donor.org&&org){donor.org=org;changed=true}
       if(!donor.address&&address){donor.address=address;changed=true}
-      if(changed){await sbSave('donors',donor);updatedDonors++}
+      if(changed){updatedDonorRecs.push(donor);updatedDonors++}
     }
-    // Create donation
-    let amt=0;
-    if(map.amount!==undefined)amt=parseFloat((row[map.amount]||'').replace(/[$,\s]/g,''))||0;
-    if(amt>0){
-      let giftDate=map.date!==undefined?(row[map.date]||'').trim():'';
-      // Try to normalize date
-      if(giftDate){
-        const d=new Date(giftDate);
-        if(!isNaN(d.getTime()))giftDate=d.toISOString().slice(0,10);
-      }
-      if(!giftDate)giftDate=new Date().toISOString().slice(0,10);
-      // Duplicate detection: skip if same donor + amount + date already exists
-      const existingGift = DB.donations.find(g =>
-        g.donorId === donor.id &&
-        Math.abs((g.amount||0) - amt) < 0.01 &&
-        g.date === giftDate
-      );
-      if(existingGift){
-        duplicateGifts++;
-        continue;
-      }
-      const giftType=(map.type!==undefined?(row[map.type]||'').trim():'')||defaultType;
-      const method=(map.method!==undefined?(row[map.method]||'').trim():'')||'OneCause';
-      const rec={id:nid('donations'),donorId:donor.id,amount:amt,date:giftDate,type:giftType,campaignId:campaignId,payment:method,notes:'Imported from OneCause',receipt:'MOT-'+String(Date.now()+giftsCreated).slice(-7)};
-      DB.donations.push(rec);
-      await sbSave('donations',rec);
-      giftsCreated++;
+    rowDonorMap[i]=donor;
+  }
+
+  // Step 3: BATCH upsert all new + updated donors in ONE network call
+  if(supabase && !demoMode && (newDonorRecs.length || updatedDonorRecs.length)){
+    const allDonors = [...newDonorRecs, ...updatedDonorRecs].map(d => _toSb('donors', d));
+    const{error} = await supabase.from('donors').upsert(allDonors);
+    if(error){
+      console.error('Batch donor upsert failed:', error);
+      toast('Donor import failed: '+error.message,'error');
+      save();renderAll();
+      return;
     }
   }
+
+  // Step 4: Build donations (after donors are guaranteed in DB)
+  for(let i=0;i<data.length;i++){
+    const row=data[i];
+    const donor=rowDonorMap[i];
+    if(!donor)continue;
+    let amt=0;
+    if(map.amount!==undefined)amt=parseFloat((row[map.amount]||'').replace(/[$,\s]/g,''))||0;
+    if(amt<=0)continue;
+    let giftDate=map.date!==undefined?(row[map.date]||'').trim():'';
+    if(giftDate){
+      const d=new Date(giftDate);
+      if(!isNaN(d.getTime()))giftDate=d.toISOString().slice(0,10);
+    }
+    if(!giftDate)giftDate=new Date().toISOString().slice(0,10);
+    // Duplicate detection
+    const existingGift = DB.donations.find(g =>
+      g.donorId === donor.id &&
+      Math.abs((g.amount||0) - amt) < 0.01 &&
+      g.date === giftDate
+    );
+    if(existingGift){duplicateGifts++;continue}
+    const giftType=(map.type!==undefined?(row[map.type]||'').trim():'')||defaultType;
+    const method=(map.method!==undefined?(row[map.method]||'').trim():'')||'OneCause';
+    const rec={id:nid('donations'),donorId:donor.id,amount:amt,date:giftDate,type:giftType,campaignId:campaignId,payment:method,notes:'Imported from OneCause',receipt:'MOT-'+String(Date.now()+giftsCreated).slice(-7)};
+    DB.donations.push(rec);
+    newDonationRecs.push(rec);
+    giftsCreated++;
+  }
+
+  // Step 5: BATCH upsert all donations in ONE network call
+  if(supabase && !demoMode && newDonationRecs.length){
+    const donationsForSb = newDonationRecs.map(d => _toSb('donations', d));
+    const{error} = await supabase.from('donations').upsert(donationsForSb);
+    if(error){
+      console.error('Batch donation upsert failed:', error);
+      toast('Gifts saved locally but Supabase sync failed: '+error.message,'error');
+    }
+  }
+
   save();
   closeModal();
   $('oc-csv-status').textContent='Imported '+_ocImportData.fileName;
@@ -2804,11 +2844,31 @@ DB.settings.sbUrl = HARDCODED_SB_URL;
 DB.settings.sbKey = HARDCODED_SB_KEY;
 save();
 
-initSupabase(HARDCODED_SB_URL, HARDCODED_SB_KEY);
+// Auto-init Supabase and check for existing session
+(async function autoInit(){
+  await initSupabase(HARDCODED_SB_URL, HARDCODED_SB_KEY);
 
-// Hide the "Supabase not yet configured" notice since credentials are baked in
-const sbNotice = document.getElementById('sb-setup-notice');
-if(sbNotice) sbNotice.style.display = 'none';
+  // Hide the "Supabase not yet configured" notice since credentials are baked in
+  const sbNotice = document.getElementById('sb-setup-notice');
+  if(sbNotice) sbNotice.style.display = 'none';
+
+  // Check for existing Supabase session — if user is already signed in, skip login screen
+  if(supabase){
+    try{
+      const{data} = await supabase.auth.getSession();
+      if(data?.session?.user){
+        currentUser = data.session.user;
+        demoMode = false;
+        const name = (currentUser.email || 'Staff').split('@')[0];
+        enterApp(name);
+        // Refresh data from Supabase so they see latest
+        loadFromSupabase();
+      }
+    }catch(e){
+      console.warn('Could not restore session:', e);
+    }
+  }
+})();
 
 // Update login screen: if SB not configured, hide that notice after user sets cred
 // Render initial view
