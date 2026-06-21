@@ -2411,7 +2411,7 @@ async function ocDoImport(){
     }
   }else if(campaignSel.value){campaignId=parseInt(campaignSel.value)}
 
-  let newDonors=0,updatedDonors=0,giftsCreated=0,skipped=0;
+  let newDonors=0,updatedDonors=0,giftsCreated=0,skipped=0,duplicateGifts=0;
   for(const row of data){
     let fname=map.fname!==undefined?(row[map.fname]||'').trim():'';
     let lname=map.lname!==undefined?(row[map.lname]||'').trim():'';
@@ -2455,6 +2455,16 @@ async function ocDoImport(){
         if(!isNaN(d.getTime()))giftDate=d.toISOString().slice(0,10);
       }
       if(!giftDate)giftDate=new Date().toISOString().slice(0,10);
+      // Duplicate detection: skip if same donor + amount + date already exists
+      const existingGift = DB.donations.find(g =>
+        g.donorId === donor.id &&
+        Math.abs((g.amount||0) - amt) < 0.01 &&
+        g.date === giftDate
+      );
+      if(existingGift){
+        duplicateGifts++;
+        continue;
+      }
       const giftType=(map.type!==undefined?(row[map.type]||'').trim():'')||defaultType;
       const method=(map.method!==undefined?(row[map.method]||'').trim():'')||'OneCause';
       const rec={id:nid('donations'),donorId:donor.id,amount:amt,date:giftDate,type:giftType,campaignId:campaignId,payment:method,notes:'Imported from OneCause',receipt:'MOT-'+String(Date.now()+giftsCreated).slice(-7)};
@@ -2471,6 +2481,7 @@ async function ocDoImport(){
   let msg=`Imported ${newDonors} new donors`;
   if(updatedDonors)msg+=`, updated ${updatedDonors}`;
   msg+=`, recorded ${giftsCreated} gifts`;
+  if(duplicateGifts)msg+=` (${duplicateGifts} duplicate gifts skipped)`;
   if(skipped)msg+=` (${skipped} empty rows skipped)`;
   toast(msg+'.','success');
 }
