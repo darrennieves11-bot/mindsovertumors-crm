@@ -1911,7 +1911,7 @@ function loadSettings(){
   if($('set-title'))$('set-title').value=s.title||'President & CEO';
   if($('set-name'))$('set-name').value=s.name||'';
   if($('set-sb-url'))$('set-sb-url').value=s.sbUrl||'';
-  if($('set-sb-key'))$('set-sb-key').value=s.sbKey?'••••••••••••••••':'';
+  if($('set-sb-key'))$('set-sb-key').value=s.sbKey||'';
 }
 function saveSettings(){
   if(!DB.settings)DB.settings={};
