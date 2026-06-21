@@ -497,6 +497,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
     <div class="hn" data-view="events">Events</div>
     <div class="hn" data-view="volunteers">Volunteers</div>
     <div class="hn" data-view="grants">Grants</div>
+    <div class="hn" data-view="projects">Projects<span class="hn-badge" id="proj-badge">0</span></div>
     <div class="hn" data-view="approvals" id="nav-approvals">Approvals<span class="hn-badge" id="approval-badge">0</span></div>
     <div class="hn" data-view="automations">Automations</div>
     <div class="hn" data-view="schedule">Schedule</div>
@@ -532,6 +533,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
     <div class="rsep"></div>
     <button class="rb" data-view="events"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rtt">Events</span></button>
     <button class="rb" data-view="grants"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="rtt">Grants</span></button>
+    <button class="rb" data-view="projects" id="rail-projects"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span class="rtt">Projects</span><span class="rb-badge" id="rail-proj-badge">0</span></button>
     <div class="rsep"></div>
     <button class="rb" data-view="approvals" id="rail-approvals"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="rtt">Approvals</span><span class="rb-badge" id="rail-badge">0</span></button>
     <button class="rb" data-view="automations"><svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="rtt">Automations</span></button>
@@ -683,6 +685,26 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           <table><thead><tr><th>Name</th><th>Type</th><th>Amount</th><th>Deadline</th><th>Status</th><th>Notes</th></tr></thead>
           <tbody id="gtbody"></tbody></table>
         </div>
+      </div>
+
+      <!-- PROJECTS / OUTGOING GRANTS -->
+      <div class="view" id="view-projects">
+        <div class="srow" style="grid-template-columns:repeat(4,1fr)">
+          <div class="sc dark"><div class="sc-l">Pending Approval</div><div class="sc-v" id="pj-pending">0</div><div class="sc-s">Awaiting your review</div></div>
+          <div class="sc"><div class="sc-l">Active Projects</div><div class="sc-v" id="pj-active">0</div><div class="sc-s">Approved &amp; in progress</div></div>
+          <div class="sc"><div class="sc-l">Total Committed</div><div class="sc-v" id="pj-committed">$0</div><div class="sc-s">All approved projects</div></div>
+          <div class="sc"><div class="sc-l">Total Disbursed</div><div class="sc-v" id="pj-disbursed">$0</div><div class="sc-s">Actually paid out</div></div>
+        </div>
+        <div class="fbar" id="pj-filters">
+          <button class="fchip active" data-filter="all" onclick="pjFilter(this,'all')">All</button>
+          <button class="fchip" data-filter="pending" onclick="pjFilter(this,'pending')">Pending Approval</button>
+          <button class="fchip" data-filter="approved" onclick="pjFilter(this,'approved')">Approved</button>
+          <button class="fchip" data-filter="inprogress" onclick="pjFilter(this,'inprogress')">In Progress</button>
+          <button class="fchip" data-filter="completed" onclick="pjFilter(this,'completed')">Completed</button>
+          <span style="flex:1"></span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('project')">+ New Project</button>
+        </div>
+        <div id="pjgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px"></div>
       </div>
 
       <!-- APPROVALS -->
@@ -939,19 +961,32 @@ let demoMode=true;
 
 async function initSupabase(url,key){
   if(!url||!key)return false;
-  try{
-    const{createClient}=await import('https://esm.sh/@supabase/supabase-js@2');
-    supabase=createClient(url,key);
-    return true;
-  }catch(e){console.error('Supabase load error',e);return false;}
+  // Try multiple CDNs in case one is down or blocked
+  const cdns=[
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm',
+    'https://esm.sh/@supabase/supabase-js@2',
+    'https://cdn.skypack.dev/@supabase/supabase-js@2',
+    'https://unpkg.com/@supabase/supabase-js@2/+esm'
+  ];
+  for(const cdn of cdns){
+    try{
+      const{createClient}=await import(cdn);
+      supabase=createClient(url,key);
+      return true;
+    }catch(e){
+      console.warn('Supabase CDN failed:',cdn,e.message);
+    }
+  }
+  console.error('All Supabase CDNs failed to load.');
+  return false;
 }
 
 // ════════════════════════════════════════════════════
 // DATA STORE (local + Supabase sync)
 // ════════════════════════════════════════════════════
 const DB={
-  donors:[],donations:[],campaigns:[],events:[],volunteers:[],grants:[],schedule:[],
-  _n:{donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,schedule:1},
+  donors:[],donations:[],campaigns:[],events:[],volunteers:[],grants:[],projects:[],schedule:[],
+  _n:{donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,projects:1,schedule:1},
   oc:{key:'',org:'',connected:false,lastSync:'',freq:'24'},
   social:{fb:'',ig:'',li:'',posts:[]},
   settings:{orgname:'Minds Over Tumors',email:'info@mindsovertumors.org',ein:'',title:'President & CEO',name:'',sbUrl:'',sbKey:''},
@@ -1176,7 +1211,7 @@ async function sbLoad(table){
 async function loadFromSupabase(){
   if(!supabase||demoMode)return;
   toast('Loading from Supabase…');
-  const tables=['donors','donations','campaigns','events','volunteers','grants'];
+  const tables=['donors','donations','campaigns','events','volunteers','grants','projects'];
   for(const t of tables){
     const data=await sbLoad(t);
     if(data)DB[t]=data;
@@ -1187,7 +1222,7 @@ async function loadFromSupabase(){
 // ════════════════════════════════════════════════════
 // NAV
 // ════════════════════════════════════════════════════
-const MNAMES={dashboard:'Dashboard',donors:'Donors & Contacts',donations:'Donations',campaigns:'Campaigns',events:'Events',volunteers:'Volunteers',grants:'Grants & Sponsors',approvals:'Approval Queue',automations:'Automations',schedule:'Schedule',onecause:'OneCause',social:'Social Hub',settings:'Settings'};
+const MNAMES={dashboard:'Dashboard',donors:'Donors & Contacts',donations:'Donations',campaigns:'Campaigns',events:'Events',volunteers:'Volunteers',grants:'Grants & Sponsors',projects:'Projects (Outgoing Grants)',approvals:'Approval Queue',automations:'Automations',schedule:'Schedule',onecause:'OneCause',social:'Social Hub',settings:'Settings'};
 const SBL={
   dashboard:[{t:'Overview'},{t:'Recent Donations'},{t:'Top Donors'}],
   donors:[{t:'All Contacts'},{t:'Major Donors'},{t:'Recurring'},{t:'Lapsed'},{t:'Board Members'}],
@@ -1196,6 +1231,7 @@ const SBL={
   events:[{t:'All Events'},{t:'Upcoming'},{t:'Past Events'}],
   volunteers:[{t:'All Volunteers'},{t:'Student Hours'},{t:'Event Staff'}],
   grants:[{t:'All Grants'},{t:'Active'},{t:'Applications'}],
+  projects:[{t:'All Projects'},{t:'Pending Approval'},{t:'Active'},{t:'Completed'}],
   approvals:[{t:'Pending Review'},{t:'Approved'},{t:'Rejected'}],
   automations:[{t:'Rules'},{t:'Templates'}],
   schedule:[{t:'Calendar'},{t:'Upcoming'},{t:'Apple Export'}],
@@ -1357,6 +1393,68 @@ function openModal(type,id=null){
     F.innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveGrant()">Add</button>`;
   }
 
+  if(type==='project'){
+    const p=id?DB.projects.find(x=>x.id===id):null;
+    $('modal-box').className='modal modal-lg';
+    T.textContent=p?'Project — '+p.name:'New Project (Outgoing Grant)';
+    const isPending = p && p.status==='Pending Approval';
+    const projectTypes=['Research Grant','Wish Grant','Family Support','Equipment Funding','Scholarship','Direct Disbursement','Partnership','Other'];
+    const statuses=['Pending Approval','Approved','In Progress','Completed','Cancelled'];
+    B.innerHTML=`
+      ${isPending?`<div style="background:var(--amber-bg);border:1px solid #f0d070;border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:var(--amber);font-weight:500;display:flex;align-items:center;gap:10px"><div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></div>This project is awaiting approval. Review the details below and click <strong>Approve Project</strong> at the bottom to release it.</div>`:''}
+      ${p&&p.approved_at?`<div style="background:#e8f5e9;border:1px solid #a8d8ad;border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:12px;color:#1e6c2a">Approved by <strong>${esc(p.approved_by||'staff')}</strong> on ${fd(p.approved_at)}</div>`:''}
+      <div class="fg">
+        <div class="ff full"><label>Project Name *</label><input id="f-pn" value="${esc(p?.name)}" placeholder="ABTA Research Grant 2026, Make-A-Wish - Sarah's Wish, etc."></div>
+        <div class="ff"><label>Type</label><select id="f-pty">${projectTypes.map(o=>`<option${p?.type===o?' selected':''}>${o}</option>`).join('')}</select></div>
+        <div class="ff"><label>Status</label><select id="f-pst">${statuses.map(o=>`<option${(p?.status===o||(!p&&o==='Pending Approval'))?' selected':''}>${o}</option>`).join('')}</select></div>
+        <div class="ff full"><label>Recipient Organization *</label><input id="f-prec" value="${esc(p?.recipient)}" placeholder="American Brain Tumor Association, Make-A-Wish Foundation, etc."></div>
+        <div class="ff"><label>Recipient Contact Name</label><input id="f-prcn" value="${esc(p?.recipient_contact)}"></div>
+        <div class="ff"><label>Recipient Email</label><input id="f-prce" type="email" value="${esc(p?.recipient_email)}"></div>
+        <div class="ff"><label>Recipient Phone</label><input id="f-prcp" value="${esc(p?.recipient_phone)}"></div>
+        <div class="ff"></div>
+        <div class="ff"><label>Total Committed ($) *</label><input id="f-pamt" type="number" step="0.01" value="${p?.amount||''}"></div>
+        <div class="ff"><label>Already Disbursed ($)</label><input id="f-pdis" type="number" step="0.01" value="${p?.disbursed||0}" ${p?'':'readonly style="background:var(--g50)"'}><div style="font-size:11px;color:var(--g500);margin-top:4px">${p?'Use the Record Disbursement button to add a payment':'Will start at $0'}</div></div>
+        <div class="ff"><label>Start Date</label><input id="f-pstart" type="date" value="${p?.start_date||''}"></div>
+        <div class="ff"><label>End Date</label><input id="f-pend" type="date" value="${p?.end_date||''}"></div>
+        <div class="ff full"><label>Purpose / Description</label><textarea id="f-pdesc" rows="3" placeholder="What is this project funding? What's the goal?">${esc(p?.description)}</textarea></div>
+        <div class="ff full"><label>Impact &amp; Reports</label><textarea id="f-pimp" rows="5" placeholder="Add updates over time — milestones, progress reports, photos from grantee, child's story (for Wish grants), research outcomes, etc.">${esc(p?.impact)}</textarea></div>
+        <div class="ff full"><label>Internal Notes</label><textarea id="f-pnotes" rows="2">${esc(p?.notes)}</textarea></div>
+      </div>`;
+    let footer='';
+    if(p){
+      footer+=`<button class="btn btn-danger btn-sm" onclick="delProject(${p.id})">Delete</button><span style="flex:1"></span>`;
+      if(p.status==='Approved'||p.status==='In Progress'){
+        footer+=`<button class="btn btn-outline" onclick="recordDisbursement(${p.id})">+ Record Disbursement</button>`;
+      }
+    }else{
+      footer+=`<span style="flex:1"></span>`;
+    }
+    footer+=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button>`;
+    if(isPending){
+      footer+=`<button class="btn btn-approve" onclick="approveProject(${p.id})">Approve Project</button>`;
+    }
+    footer+=`<button class="btn btn-primary" onclick="saveProject(${p?p.id:null})">${p?'Save Changes':'Create Project'}</button>`;
+    F.innerHTML=footer;
+  }
+
+  if(type==='disbursement'){
+    const p=DB.projects.find(x=>x.id===id);
+    if(!p)return;
+    T.textContent='Record Disbursement — '+p.name;
+    const remaining=(p.amount||0)-(p.disbursed||0);
+    B.innerHTML=`<div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:var(--g600);line-height:1.7">
+      <div><strong>Committed:</strong> $${(p.amount||0).toLocaleString()}</div>
+      <div><strong>Already Disbursed:</strong> $${(p.disbursed||0).toLocaleString()}</div>
+      <div><strong>Remaining:</strong> $${remaining.toLocaleString()}</div>
+    </div>
+    <div class="fg">
+      <div class="ff"><label>Amount ($) *</label><input id="f-disamt" type="number" step="0.01" max="${remaining}" placeholder="0.00"></div>
+      <div class="ff"><label>Date</label><input id="f-disdate" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="ff full"><label>Notes (check #, method, etc.)</label><input id="f-disnotes" placeholder="Check #1234, ACH transfer, etc."></div>
+    </div>`;
+    F.innerHTML=`<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveDisbursement(${p.id})">Record Disbursement</button>`;
+  }
+
   if(type==='schedule-event'){
     const s=id?DB.schedule.find(x=>x.id===id):null;
     T.textContent=s?'Edit Schedule Event':'Add to Schedule';
@@ -1415,7 +1513,7 @@ function openModal(type,id=null){
 }
 
 function quickAdd(){
-  const m={dashboard:'donor',donors:'donor',volunteers:'volunteer',donations:'donation',campaigns:'campaign',events:'event',grants:'grant',approvals:'donor',automations:'donation',schedule:'schedule-event',onecause:'donation',social:'donor',settings:'donor'};
+  const m={dashboard:'donor',donors:'donor',volunteers:'volunteer',donations:'donation',campaigns:'campaign',events:'event',grants:'grant',projects:'project',approvals:'donor',automations:'donation',schedule:'schedule-event',onecause:'donation',social:'donor',settings:'donor'};
   openModal(m[cv]||'donor');
 }
 
@@ -1466,6 +1564,27 @@ create table if not exists grants (
   created_at timestamptz default now()
 );
 
+create table if not exists projects (
+  id serial primary key,
+  name text,
+  recipient text,
+  recipient_contact text,
+  recipient_email text,
+  recipient_phone text,
+  type text,
+  amount numeric default 0,
+  disbursed numeric default 0,
+  status text default 'Pending Approval',
+  start_date date,
+  end_date date,
+  description text,
+  impact text,
+  notes text,
+  approved_by text,
+  approved_at timestamptz,
+  created_at timestamptz default now()
+);
+
 -- Enable Row Level Security (recommended)
 alter table donors enable row level security;
 alter table donations enable row level security;
@@ -1473,6 +1592,7 @@ alter table campaigns enable row level security;
 alter table events enable row level security;
 alter table volunteers enable row level security;
 alter table grants enable row level security;
+alter table projects enable row level security;
 
 -- Allow authenticated users full access
 create policy "auth_full" on donors for all using (auth.role() = 'authenticated');
@@ -1480,7 +1600,8 @@ create policy "auth_full" on donations for all using (auth.role() = 'authenticat
 create policy "auth_full" on campaigns for all using (auth.role() = 'authenticated');
 create policy "auth_full" on events for all using (auth.role() = 'authenticated');
 create policy "auth_full" on volunteers for all using (auth.role() = 'authenticated');
-create policy "auth_full" on grants for all using (auth.role() = 'authenticated');`;
+create policy "auth_full" on grants for all using (auth.role() = 'authenticated');
+create policy "auth_full" on projects for all using (auth.role() = 'authenticated');`;
 }
 
 function copySQL(){
@@ -1906,6 +2027,163 @@ function ocSync(){
 function ocDisconnect(){if(!confirm('Disconnect OneCause?'))return;DB.oc.connected=false;DB.oc.key='';save();renderOC();toast('Disconnected.')}
 
 // ════════════════════════════════════════════════════
+// PROJECTS / OUTGOING GRANTS
+// ════════════════════════════════════════════════════
+let _pjFilter='all';
+function pjFilter(btn,f){
+  document.querySelectorAll('#pj-filters .fchip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  _pjFilter=f;
+  rProjects();
+}
+
+async function saveProject(eid){
+  const name=vf('f-pn'),recipient=vf('f-prec'),amount=parseFloat($('f-pamt').value)||0;
+  if(!name||!recipient){alert('Project name and recipient are required.');return}
+  const existing=eid?DB.projects.find(x=>x.id===eid):null;
+  const obj={
+    id:eid||nid('projects'),
+    name,recipient,
+    recipient_contact:vf('f-prcn'),
+    recipient_email:vf('f-prce'),
+    recipient_phone:vf('f-prcp'),
+    type:vf('f-pty'),
+    amount,
+    disbursed:existing?existing.disbursed:0,
+    status:vf('f-pst'),
+    start_date:vf('f-pstart'),
+    end_date:vf('f-pend'),
+    description:vf('f-pdesc'),
+    impact:vf('f-pimp'),
+    notes:vf('f-pnotes'),
+    approved_by:existing?existing.approved_by:'',
+    approved_at:existing?existing.approved_at:'',
+    created_at:existing?existing.created_at:new Date().toISOString()
+  };
+  if(eid){DB.projects[DB.projects.findIndex(x=>x.id===eid)]=obj}
+  else{DB.projects.push(obj)}
+  save();
+  await sbSave('projects',obj);
+  closeModal();renderAll();
+  toast(eid?'Project updated.':'Project created — awaiting approval.','success');
+}
+
+async function delProject(id){
+  if(!confirm('Delete this project? This cannot be undone.'))return;
+  DB.projects=DB.projects.filter(x=>x.id!==id);
+  save();await sbDelete('projects',id);
+  closeModal();renderAll();
+  toast('Project deleted.','success');
+}
+
+async function approveProject(id){
+  const p=DB.projects.find(x=>x.id===id);
+  if(!p)return;
+  if(!confirm('Approve "'+p.name+'" for $'+(p.amount||0).toLocaleString()+'?\n\nOnce approved, funds can be disbursed.'))return;
+  p.status='Approved';
+  p.approved_by=DB.settings.name||'Staff';
+  p.approved_at=new Date().toISOString();
+  save();
+  await sbSave('projects',p);
+  closeModal();renderAll();
+  toast('Project approved! You can now record disbursements.','success');
+}
+
+function recordDisbursement(id){
+  closeModal();
+  setTimeout(()=>openModal('disbursement',id),50);
+}
+
+async function saveDisbursement(projectId){
+  const amt=parseFloat($('f-disamt').value)||0;
+  if(amt<=0){alert('Enter a disbursement amount greater than $0.');return}
+  const p=DB.projects.find(x=>x.id===projectId);
+  if(!p)return;
+  const remaining=(p.amount||0)-(p.disbursed||0);
+  if(amt>remaining){
+    if(!confirm(`Disbursement of $${amt.toLocaleString()} exceeds remaining commitment of $${remaining.toLocaleString()}. Continue anyway?`))return;
+  }
+  p.disbursed=(p.disbursed||0)+amt;
+  // Append to impact log
+  const date=vf('f-disdate')||new Date().toISOString().slice(0,10);
+  const note=vf('f-disnotes');
+  const entry=`[${date}] Disbursed $${amt.toLocaleString()}${note?' — '+note:''}`;
+  p.impact=p.impact?p.impact+'\n'+entry:entry;
+  // Auto-progress status
+  if(p.status==='Approved')p.status='In Progress';
+  if(p.disbursed>=p.amount)p.status='Completed';
+  save();
+  await sbSave('projects',p);
+  closeModal();renderAll();
+  toast('Disbursement recorded: $'+amt.toLocaleString(),'success');
+}
+
+function rProjects(){
+  const grid=$('pjgrid');
+  if(!grid)return;
+  let list=DB.projects.slice();
+  // Filter
+  if(_pjFilter==='pending')list=list.filter(p=>p.status==='Pending Approval');
+  else if(_pjFilter==='approved')list=list.filter(p=>p.status==='Approved');
+  else if(_pjFilter==='inprogress')list=list.filter(p=>p.status==='In Progress');
+  else if(_pjFilter==='completed')list=list.filter(p=>p.status==='Completed');
+  // Sort: Pending first, then by created_at desc
+  list.sort((a,b)=>{
+    const order={'Pending Approval':0,'Approved':1,'In Progress':2,'Completed':3,'Cancelled':4};
+    if((order[a.status]||9)!==(order[b.status]||9))return (order[a.status]||9)-(order[b.status]||9);
+    return (b.created_at||'').localeCompare(a.created_at||'');
+  });
+  // Stats
+  const pending=DB.projects.filter(p=>p.status==='Pending Approval').length;
+  const active=DB.projects.filter(p=>p.status==='Approved'||p.status==='In Progress').length;
+  const committed=DB.projects.filter(p=>p.status!=='Pending Approval'&&p.status!=='Cancelled').reduce((s,p)=>s+(p.amount||0),0);
+  const disbursed=DB.projects.reduce((s,p)=>s+(p.disbursed||0),0);
+  if($('pj-pending'))$('pj-pending').textContent=pending;
+  if($('pj-active'))$('pj-active').textContent=active;
+  if($('pj-committed'))$('pj-committed').textContent='$'+committed.toLocaleString();
+  if($('pj-disbursed'))$('pj-disbursed').textContent='$'+disbursed.toLocaleString();
+  // Badge
+  if($('proj-badge')){$('proj-badge').textContent=pending;$('proj-badge').style.display=pending?'inline-flex':'none'}
+  if($('rail-proj-badge')){$('rail-proj-badge').textContent=pending;$('rail-proj-badge').style.display=pending?'flex':'none'}
+  // Render cards
+  if(!list.length){
+    grid.innerHTML=mkE('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+      _pjFilter==='all'?'No projects yet. Track outgoing grants, wish disbursements, and program funding here.':'No projects match this filter.',
+      _pjFilter==='all'?'+ Create First Project':null,
+      _pjFilter==='all'?"openModal('project')":null);
+    return;
+  }
+  grid.innerHTML=list.map(p=>{
+    const pct=p.amount>0?Math.min(100,Math.round((p.disbursed||0)/p.amount*100)):0;
+    const statusColor={
+      'Pending Approval':'b-amber',
+      'Approved':'b-blue',
+      'In Progress':'b-purple',
+      'Completed':'b-green',
+      'Cancelled':'b-gray'
+    }[p.status]||'b-gray';
+    const typeIcon=p.type==='Wish Grant'?'★':p.type==='Research Grant'?'⚛':p.type==='Family Support'?'♥':p.type==='Scholarship'?'◆':'●';
+    return `<div class="evcard" style="cursor:pointer;border:1px solid var(--g200);${p.status==='Pending Approval'?'border-left:3px solid var(--amber)':''}" onclick="openModal('project',${p.id})">
+      <div class="evb" style="padding:18px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g500);display:flex;align-items:center;gap:6px"><span style="color:var(--blue)">${typeIcon}</span>${esc(p.type||'Project')}</div>
+          <span class="badge ${statusColor}">${esc(p.status)}</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:var(--navy);line-height:1.3;margin-bottom:4px">${esc(p.name)}</div>
+        <div style="font-size:12.5px;color:var(--g600);margin-bottom:12px">→ ${esc(p.recipient)}</div>
+        ${p.description?`<div style="font-size:12px;color:var(--g500);line-height:1.5;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(p.description)}</div>`:''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:10px;border-top:1px solid var(--g150)">
+          <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g400)">Committed</div><div style="font-size:15px;font-weight:700;color:var(--navy);margin-top:2px">$${(p.amount||0).toLocaleString()}</div></div>
+          <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g400)">Disbursed</div><div style="font-size:15px;font-weight:700;color:var(--blue);margin-top:2px">$${(p.disbursed||0).toLocaleString()}</div></div>
+        </div>
+        ${p.amount>0?`<div style="margin-top:10px;height:6px;background:var(--g150);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${pct>=100?'var(--green)':'var(--blue)'};transition:width .3s"></div></div><div style="font-size:11px;color:var(--g500);margin-top:4px;text-align:right">${pct}% disbursed</div>`:''}
+        ${p.status==='Pending Approval'?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--g150);display:flex;gap:8px"><button class="btn btn-approve btn-sm" style="flex:1" onclick="event.stopPropagation();approveProject(${p.id})">Approve</button><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openModal('project',${p.id})">Review</button></div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════
 // ONECAUSE CSV IMPORT
 // ════════════════════════════════════════════════════
 function ocParseCSV(text){
@@ -2289,7 +2567,7 @@ function fd(d){if(!d)return'—';return new Date(d+'T12:00:00').toLocaleDateStri
 function fa(n){return'$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function mkE(svgP,msg,btnLabel,btnFn){return`<div class="es"><div class="es-ic"><svg viewBox="0 0 24 24">${svgP}</svg></div><p>${msg}</p>${btnLabel?`<button class="btn btn-primary btn-sm" onclick="${btnFn}">${btnLabel}</button>`:''}</div>`}
 
-function renderAll(){rDash();rDonors();rVols();rDons();rCamps();rEvs();rGrants();updateBadge()}
+function renderAll(){rDash();rDonors();rVols();rDons();rCamps();rEvs();rGrants();rProjects();updateBadge()}
 
 function rDash(){
   const tot=DB.donations.reduce((s,d)=>s+d.amount,0);
