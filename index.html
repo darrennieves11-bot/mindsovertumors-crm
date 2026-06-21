@@ -554,7 +554,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
       </div>
       <div class="rb-box">
         <div class="rb-lbl">Total Raised</div>
-        <div class="rb-val">$<span id="sb-raised">420,000</span></div>
+        <div class="rb-val">$<span id="sb-raised">0</span></div>
         <div class="rb-sub">All-time · Minds Over Tumors</div>
       </div>
       <div class="sb-copy">© 2026 Minds Over Tumors</div>
@@ -572,7 +572,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
       <!-- DASHBOARD -->
       <div class="view active" id="view-dashboard">
         <div class="srow">
-          <div class="sc dark"><div class="sc-l">Total Raised</div><div class="sc-v">$<span id="d-raised">420,000</span></div><div class="sc-s">All-time contributions</div></div>
+          <div class="sc dark"><div class="sc-l">Total Raised</div><div class="sc-v">$<span id="d-raised">0</span></div><div class="sc-s">All-time contributions</div></div>
           <div class="sc"><div class="sc-l">Total Donors</div><div class="sc-v" id="d-donors">0</div><div class="sc-s">In database</div></div>
           <div class="sc"><div class="sc-l">This Year</div><div class="sc-v">$<span id="d-year">0</span></div><div class="sc-s" id="d-yrs">0 gifts</div></div>
           <div class="sc" style="cursor:pointer" onclick="switchView('approvals')">
@@ -2605,8 +2605,8 @@ function rDash(){
   const tot=DB.donations.reduce((s,d)=>s+d.amount,0);
   const yr=new Date().getFullYear();
   const yrD=DB.donations.filter(d=>d.date&&d.date.startsWith(yr));
-  if($('d-raised'))$('d-raised').textContent=(420000+tot).toLocaleString();
-  if($('sb-raised'))$('sb-raised').textContent=(420000+tot).toLocaleString();
+  if($('d-raised'))$('d-raised').textContent=(tot).toLocaleString();
+  if($('sb-raised'))$('sb-raised').textContent=(tot).toLocaleString();
   if($('d-donors'))$('d-donors').textContent=DB.donors.length;
   if($('d-year'))$('d-year').textContent=yrD.reduce((s,d)=>s+d.amount,0).toLocaleString();
   if($('d-yrs'))$('d-yrs').textContent=yrD.length+' gift'+(yrD.length!==1?'s':'')+' this year';
