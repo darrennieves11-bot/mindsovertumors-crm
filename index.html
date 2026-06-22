@@ -916,6 +916,19 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           </div>
         </div>
 
+        <!-- Counter Management -->
+        <div class="settings-section">
+          <h3>Counter Management</h3>
+          <div style="padding:14px 18px">
+            <p style="font-size:12.5px;color:var(--g500);margin-bottom:14px;line-height:1.6">Reset the <strong>Total Raised</strong> counter on the dashboard to start fresh from a specific date (e.g. start of a new fiscal year). <strong>Your historical donation data stays intact</strong> — only the visible counter changes. You can clear the baseline anytime to show all-time totals again.</p>
+            <div id="raised-reset-status"></div>
+            <div class="flex aic g2" style="margin-top:10px">
+              <button class="btn btn-outline btn-sm" onclick="resetRaisedCounter()">Reset Total Raised Counter</button>
+              <button class="btn btn-outline btn-sm" id="clear-raised-btn" onclick="clearRaisedReset()" style="display:none">Clear Baseline (Show All-Time)</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Data -->
         <div class="settings-section">
           <h3>Data Management</h3>
@@ -991,7 +1004,7 @@ const DB={
   _n:{donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,projects:1,schedule:1},
   oc:{key:'',org:'',connected:false,lastSync:'',freq:'24'},
   social:{fb:'',ig:'',li:'',posts:[]},
-  settings:{orgname:'Minds Over Tumors',email:'info@mindsovertumors.org',ein:'',title:'President & CEO',name:'',sbUrl:'',sbKey:''},
+  settings:{orgname:'Minds Over Tumors',email:'info@mindsovertumors.org',ein:'',title:'President & CEO',name:'',sbUrl:'',sbKey:'',raisedResetDate:''},
   automations:{
     queue:[],
     rules:{
@@ -1386,6 +1399,8 @@ function openModal(type,id=null){
 
   if(type==='event'){
     const e=id?DB.events.find(x=>x.id===id):null;
+    _evtAttachBuf = e?.attachments ? JSON.parse(JSON.stringify(e.attachments)) : [];
+    $('modal-box').className='modal modal-lg';
     T.textContent=e?'Edit Event':'New Event';
     B.innerHTML=`<div class="fg">
       <div class="ff full"><label>Event Name *</label><input id="f-en" value="${esc(e?.name)}"></div>
@@ -1395,11 +1410,18 @@ function openModal(type,id=null){
       <div class="ff"><label>Revenue Goal ($)</label><input id="f-eg" type="number" value="${e?.goal||''}"></div>
       <div class="ff"><label>Expected Attendees</label><input id="f-ea" type="number" value="${e?.attendees||''}"></div>
       <div class="ff"><label>Status</label><select id="f-es">${['Planned','Active','Completed','Cancelled'].map(o=>`<option${(e?.status===o||(!e&&o==='Planned'))?' selected':''}>${o}</option>`).join('')}</select></div>
-      <div class="ff full"><label>Notes</label><textarea id="f-eno">${esc(e?.desc)}</textarea></div>
+      <div class="ff full"><label>Notes</label><textarea id="f-eno" rows="4">${esc(e?.desc)}</textarea></div>
+      <div class="ff full">
+        <label>Attachments <span style="font-weight:400;color:var(--g500);font-size:11px">(images, PDFs, docs — max 25 MB each)</span></label>
+        <div id="att-list" style="margin-bottom:8px"></div>
+        <input type="file" id="f-eatt" multiple style="display:none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" onchange="uploadEventAttachment()">
+        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('f-eatt').click()">+ Add File</button>
+      </div>
     </div>`;
     F.innerHTML=`${e?`<button class="btn btn-danger btn-sm" onclick="delEv(${e.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveEv(${e?e.id:null})">${e?'Save Changes':'Create Event'}</button>`;
+    renderAttachmentList();
   }
 
   if(type==='volunteer'){
@@ -1690,9 +1712,9 @@ async function delCamp(id){if(!confirm('Delete?'))return;DB.campaigns=DB.campaig
 
 async function saveEv(eid){
   const name=vf('f-en'),date=vf('f-ed');if(!name||!date){alert('Name and date required.');return}
-  const obj={id:eid||nid('events'),name,date,type:vf('f-ety'),venue:vf('f-ev'),goal:parseFloat($('f-eg').value)||0,attendees:parseInt($('f-ea').value)||0,status:vf('f-es'),desc:vf('f-eno')};
+  const obj={id:eid||nid('events'),name,date,type:vf('f-ety'),venue:vf('f-ev'),goal:parseFloat($('f-eg').value)||0,attendees:parseInt($('f-ea').value)||0,status:vf('f-es'),desc:vf('f-eno'),attachments:_evtAttachBuf||[]};
   if(eid)DB.events[DB.events.findIndex(x=>x.id===eid)]=obj;else DB.events.push(obj);
-  save();await sbSave('events',obj);closeModal();renderAll();toast(eid?'Updated.':'Event created!','success');
+  save();await sbSave('events',obj);closeModal();renderAll();_evtAttachBuf=[];toast(eid?'Updated.':'Event created!','success');
 }
 async function delEv(id){if(!confirm('Delete?'))return;DB.events=DB.events.filter(x=>x.id!==id);save();await sbDelete('events',id);closeModal();renderAll();toast('Deleted.')}
 
@@ -2064,6 +2086,129 @@ function ocSync(){
   setTimeout(()=>{log.innerHTML+='<span class="lok">✓ Sync complete — no new transactions</span>\n';DB.oc.lastSync=new Date().toISOString();$('oc-dot').classList.remove('syncing');renderOC();save();toast('Sync complete!','success')},2000);
 }
 function ocDisconnect(){if(!confirm('Disconnect OneCause?'))return;DB.oc.connected=false;DB.oc.key='';save();renderOC();toast('Disconnected.')}
+
+// ════════════════════════════════════════════════════
+// COUNTER MANAGEMENT
+// ════════════════════════════════════════════════════
+function resetRaisedCounter(){
+  const today = new Date().toISOString().slice(0,10);
+  const fmt = new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  if(!confirm(`Reset the Total Raised counter?\n\nStarting today (${fmt}), the dashboard counter will only show gifts dated ON or AFTER this date.\n\nAll your historical donation records stay intact and remain searchable in the Donations tab. Lifetime totals can be restored anytime by clearing this baseline.\n\nProceed?`))return;
+  DB.settings.raisedResetDate = today;
+  save();
+  renderRaisedResetStatus();
+  renderAll();
+  toast('Counter reset. Now showing gifts from '+fmt+' forward.','success');
+}
+function clearRaisedReset(){
+  if(!confirm('Clear the counter baseline?\n\nTotal Raised will go back to showing your all-time total across every gift in the database.'))return;
+  DB.settings.raisedResetDate = '';
+  save();
+  renderRaisedResetStatus();
+  renderAll();
+  toast('Baseline cleared. Now showing all-time total.','success');
+}
+function renderRaisedResetStatus(){
+  const el = $('raised-reset-status'); const btn = $('clear-raised-btn');
+  if(!el)return;
+  if(DB.settings.raisedResetDate){
+    const fmt = new Date(DB.settings.raisedResetDate+'T00:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+    el.innerHTML = `<div style="background:#e8f5e9;border:1px solid #a8d8ad;border-radius:var(--r);padding:11px 14px;font-size:12.5px;color:#1e6c2a">Counter is currently showing gifts dated <strong>${fmt}</strong> or later. (Historical gifts before this date are still in the database.)</div>`;
+    if(btn) btn.style.display='inline-flex';
+  } else {
+    el.innerHTML = `<div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:11px 14px;font-size:12.5px;color:var(--g600)">Counter is showing <strong>all-time</strong> total across every donation.</div>`;
+    if(btn) btn.style.display='none';
+  }
+}
+
+// ════════════════════════════════════════════════════
+// EVENT ATTACHMENTS (Supabase Storage)
+// ════════════════════════════════════════════════════
+let _evtAttachBuf = []; // attachments being edited in current modal
+
+function fmtFileSize(bytes){
+  if(!bytes)return '0 B';
+  if(bytes<1024)return bytes+' B';
+  if(bytes<1024*1024)return (bytes/1024).toFixed(1)+' KB';
+  return (bytes/(1024*1024)).toFixed(1)+' MB';
+}
+function fileIcon(type){
+  if(!type)return '📄';
+  if(type.startsWith('image/'))return '🖼️';
+  if(type==='application/pdf')return '📕';
+  if(type.includes('word')||type.includes('document'))return '📝';
+  if(type.includes('sheet')||type.includes('excel'))return '📊';
+  if(type.includes('presentation')||type.includes('powerpoint'))return '📑';
+  return '📄';
+}
+
+async function uploadEventAttachment(){
+  const input = $('f-eatt'); if(!input||!input.files||!input.files.length) return;
+  if(!supabase || demoMode){
+    toast('Sign in to Supabase to upload files.','error'); input.value=''; return;
+  }
+  for(const file of input.files){
+    if(file.size > 25*1024*1024){
+      toast(`"${file.name}" too large (max 25 MB). Skipped.`,'error');
+      continue;
+    }
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path = `events/${Date.now()}-${safeName}`;
+    toast(`Uploading ${file.name}…`);
+    const{error: uploadError} = await supabase.storage.from('event-attachments').upload(path, file, {upsert:false, contentType:file.type});
+    if(uploadError){
+      console.error('Upload error:', uploadError);
+      if((uploadError.message||'').toLowerCase().includes('bucket') || (uploadError.statusCode||uploadError.status)==404){
+        toast('Storage bucket "event-attachments" not found. See Settings for setup instructions.','error');
+      } else {
+        toast('Upload failed: '+uploadError.message,'error');
+      }
+      continue;
+    }
+    const{data:urlData} = supabase.storage.from('event-attachments').getPublicUrl(path);
+    _evtAttachBuf.push({
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      path: path,
+      url: urlData.publicUrl,
+      uploaded: new Date().toISOString()
+    });
+    toast(`Attached ${file.name}`,'success');
+  }
+  input.value = '';
+  renderAttachmentList();
+}
+
+async function removeEventAttachment(idx){
+  const att = _evtAttachBuf[idx]; if(!att) return;
+  if(!confirm('Remove "'+att.name+'"?\n\nThe file will be permanently deleted from storage.')) return;
+  if(supabase && !demoMode && att.path){
+    try{
+      await supabase.storage.from('event-attachments').remove([att.path]);
+    }catch(e){console.warn('Storage remove failed:',e)}
+  }
+  _evtAttachBuf.splice(idx,1);
+  renderAttachmentList();
+  toast('Removed.','success');
+}
+
+function renderAttachmentList(){
+  const list = $('att-list'); if(!list) return;
+  if(!_evtAttachBuf.length){
+    list.innerHTML = `<div style="font-size:12px;color:var(--g500);padding:8px 0">No files attached yet.</div>`;
+    return;
+  }
+  list.innerHTML = _evtAttachBuf.map((a,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);margin-bottom:6px">
+      <div style="font-size:20px;flex-shrink:0">${fileIcon(a.type)}</div>
+      <div style="flex:1;min-width:0">
+        <a href="${esc(a.url)}" target="_blank" rel="noopener" style="color:var(--navy);font-weight:600;font-size:13px;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</a>
+        <div style="font-size:11px;color:var(--g500)">${fmtFileSize(a.size)} · <a href="${esc(a.url)}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">Open</a></div>
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" style="flex-shrink:0" onclick="removeEventAttachment(${i})">Remove</button>
+    </div>`).join('');
+}
 
 // ════════════════════════════════════════════════════
 // PROJECTS / OUTGOING GRANTS
@@ -2464,7 +2609,12 @@ async function ocDoImport(){
 
   // Step 3: BATCH upsert all new + updated donors in ONE network call
   if(supabase && !demoMode && (newDonorRecs.length || updatedDonorRecs.length)){
-    const allDonors = [...newDonorRecs, ...updatedDonorRecs].map(d => _toSb('donors', d));
+    // Dedupe by id (same donor may have been updated multiple times in this batch)
+    const donorMap = new Map();
+    for(const d of [...newDonorRecs, ...updatedDonorRecs]){
+      donorMap.set(d.id, d);  // last write wins
+    }
+    const allDonors = [...donorMap.values()].map(d => _toSb('donors', d));
     const{error} = await supabase.from('donors').upsert(allDonors);
     if(error){
       console.error('Batch donor upsert FAILED. Full error:', JSON.stringify(error,null,2));
@@ -2558,6 +2708,7 @@ function loadSettings(){
   if($('set-name'))$('set-name').value=s.name||'';
   if($('set-sb-url'))$('set-sb-url').value=s.sbUrl||'';
   if($('set-sb-key'))$('set-sb-key').value=s.sbKey||'';
+  renderRaisedResetStatus();
 }
 function saveSettings(){
   if(!DB.settings)DB.settings={};
@@ -2654,7 +2805,9 @@ function mkE(svgP,msg,btnLabel,btnFn){return`<div class="es"><div class="es-ic">
 function renderAll(){rDash();rDonors();rVols();rDons();rCamps();rEvs();rGrants();rProjects();updateBadge()}
 
 function rDash(){
-  const tot=DB.donations.reduce((s,d)=>s+d.amount,0);
+  const resetDate = DB.settings.raisedResetDate || '';
+  const donsForTotal = resetDate ? DB.donations.filter(d => (d.date||'') >= resetDate) : DB.donations;
+  const tot=donsForTotal.reduce((s,d)=>s+(d.amount||0),0);
   const yr=new Date().getFullYear();
   const yrD=DB.donations.filter(d=>d.date&&d.date.startsWith(yr));
   if($('d-raised'))$('d-raised').textContent=(tot).toLocaleString();
