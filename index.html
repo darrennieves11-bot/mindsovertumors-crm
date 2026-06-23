@@ -1099,6 +1099,7 @@ async function handleLogin(){
   currentUser=data.user;
   demoMode=false;
   enterApp(email.split('@')[0]);
+  loadFromSupabase();
 }
 
 function handleDemoLogin(){
@@ -1244,9 +1245,14 @@ function _fromSb(table, obj){
 }
 
 async function sbSave(table,obj){
-  if(!supabase||demoMode)return;
+  if(!supabase||demoMode)return{ok:true};
   const{error} = await supabase.from(table).upsert(_toSb(table,obj));
-  if(error)console.error('Supabase save error ('+table+'):', error.message, error.details||'');
+  if(error){
+    console.error('Supabase save error ('+table+'):', error.message, error.details||'', '— Record:', obj);
+    toast(`⚠ Cloud sync failed for ${table}: ${error.message}. Saved locally.`,'error');
+    return{ok:false, error};
+  }
+  return{ok:true};
 }
 async function sbDelete(table,id){
   if(!supabase||demoMode)return;
@@ -1262,13 +1268,45 @@ async function sbLoad(table){
 
 async function loadFromSupabase(){
   if(!supabase||demoMode)return;
-  toast('Loading from Supabase…');
+  toast('Syncing with Supabase…');
   const tables=['donors','donations','campaigns','events','volunteers','grants','projects'];
+  let pushedCount=0;
+  let pushErrors=[];
   for(const t of tables){
-    const data=await sbLoad(t);
-    if(data)DB[t]=data;
+    const remoteData=await sbLoad(t);
+    if(remoteData===null)continue; // load failed — leave local data alone
+    // Find local items NOT in remote (saves that never made it to cloud)
+    const remoteIds=new Set(remoteData.map(r=>r.id));
+    const localOnly=(DB[t]||[]).filter(item=>item && item.id!=null && !remoteIds.has(item.id));
+    if(localOnly.length>0){
+      console.warn(`Found ${localOnly.length} local-only ${t} not in Supabase — pushing up`);
+      for(const item of localOnly){
+        const result=await sbSave(t,item);
+        if(result.ok){pushedCount++}
+        else{pushErrors.push(`${t}: ${item.name||item.fname||item.id}`)}
+      }
+      // Merge: keep both remote + successfully recovered local
+      DB[t]=[...remoteData, ...localOnly];
+    } else {
+      DB[t]=remoteData;
+    }
+    // Also update _n counter so new IDs don't collide
+    if(DB[t]&&DB[t].length){
+      const maxId=Math.max(...DB[t].map(x=>x.id||0));
+      if(DB._n && DB._n[t]!==undefined && maxId >= DB._n[t]){
+        DB._n[t] = maxId + 1;
+      }
+    }
   }
-  renderAll();toast('Data loaded from Supabase!','success');
+  save();
+  renderAll();
+  if(pushedCount>0){
+    toast(`Synced! Restored ${pushedCount} item(s) that hadn't uploaded to cloud.`,'success');
+  } else if(pushErrors.length>0){
+    toast(`Some items couldn't sync. Check console for details.`,'error');
+  } else {
+    toast('Synced with Supabase.','success');
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -1859,9 +1897,9 @@ function updateBadge(){
 
 function approveDoc(itemId){
   const item=DB.automations.queue.find(q=>q.id===itemId);if(!item)return;
-  item.status='approved';item.approvedAt=new Date().toISOString();
-  save();closeModal();renderQueue();updateBadge();renderAll();
-  toast('Document approved and sent to '+item.donorName+'!','success');
+  // Show send modal — we don't have an email backend, so user sends from their own mail client
+  closeModal();
+  setTimeout(()=>showSendModal(item),50);
 }
 function rejectDoc(itemId){
   const item=DB.automations.queue.find(q=>q.id===itemId);if(!item)return;
@@ -1871,10 +1909,74 @@ function rejectDoc(itemId){
 function approveAll(){
   const pending=DB.automations.queue.filter(q=>q.status==='pending');
   if(!pending.length){toast('No pending documents.');return}
-  if(!confirm(`Approve and send all ${pending.length} pending documents?`))return;
-  pending.forEach(q=>{q.status='approved';q.approvedAt=new Date().toISOString()});
-  save();renderQueue();updateBadge();renderAll();
-  toast(`${pending.length} document${pending.length>1?'s':''} approved!`,'success');
+  if(pending.length>1){
+    if(!confirm(`Process all ${pending.length} pending documents one at a time?\n\nFor each, your email client will open with the message pre-filled. You'll click Send in your mail app, then close the modal to move to the next.`))return;
+  }
+  // Open send modal for first; user will work through them
+  showSendModal(pending[0], {remaining: pending.length});
+}
+
+// ════════════════════════════════════════════════════
+// EMAIL SEND (mailto + copy handoff to user's mail client)
+// ════════════════════════════════════════════════════
+function makeSubject(item){
+  const org = DB.settings.orgname || 'Minds Over Tumors';
+  if(item.type==='receipt')return `Tax Receipt — Your $${Number(item.amount||0).toLocaleString()} gift to ${org}`;
+  if(item.type==='thankyou'||item.type==='thank_you')return `Thank you from ${org}`;
+  if(item.type==='lapsed')return `We miss you at ${org}`;
+  if(item.type==='majorgift'||item.type==='major')return `Thank you for your generous gift to ${org}`;
+  return `${item.typeLabel||'A note'} from ${org}`;
+}
+function showSendModal(item, ctx){
+  if(!item)return;
+  const subject = makeSubject(item);
+  const body = item.renderedBody || '';
+  const to = item.donorEmail || '';
+  const noEmail = !to;
+  const sigLine = (DB.settings.name||'')+(DB.settings.title?', '+DB.settings.title:'');
+  const fullBody = body + (sigLine?`\n\n${sigLine}\n${DB.settings.orgname||'Minds Over Tumors'}`:`\n\n${DB.settings.orgname||'Minds Over Tumors'}`);
+  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+  $('modal-box').className='modal modal-lg';
+  $('mtitle').textContent='Send: '+(item.typeLabel||'Document')+' — '+item.donorName;
+  $('mbody').innerHTML = `
+    <div style="background:#fff8e1;border:1px solid #f0d070;border-radius:var(--r);padding:11px 14px;margin-bottom:14px;font-size:12.5px;color:#7a5a00;line-height:1.6">
+      <strong>How sending works:</strong> Click <strong>Open in Email App</strong> below — your default email client (Gmail, Outlook, etc.) will open with this message pre-filled. Review it, add any personal touches, then click Send in your mail app. Once you've sent it, click <strong>Mark as Sent</strong> here to update the queue.
+    </div>
+    <div class="fg">
+      <div class="ff"><label>To</label><input id="send-to" value="${esc(to)}" ${noEmail?'placeholder="No email on file — add one to the donor record"':''}></div>
+      <div class="ff"><label>From (your reply-to)</label><input value="${esc(DB.settings.email||'info@mindsovertumors.org')}" readonly style="background:var(--g50)"></div>
+      <div class="ff full"><label>Subject</label><input id="send-subject" value="${esc(subject)}"></div>
+      <div class="ff full"><label>Message Body</label><textarea id="send-body" rows="14" style="font-family:var(--mono);font-size:12.5px">${esc(fullBody)}</textarea></div>
+    </div>
+    ${noEmail?`<div style="background:#ffebee;border:1px solid #f5b5bb;border-radius:var(--r);padding:10px 14px;margin-top:12px;font-size:12px;color:#a01828">No email on file for this donor. Edit their record to add one, or copy the message and send manually.</div>`:''}`;
+  $('mfoot').innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="copySendBody()">Copy Message</button>
+    <span style="flex:1"></span>
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    ${noEmail?'':`<a class="btn btn-outline" href="${mailto}" id="send-mailto-btn" onclick="document.getElementById('send-mailto-btn').dataset.opened='1'">Open in Email App</a>`}
+    <button class="btn btn-approve" onclick="markAsSent('${item.id}')">Mark as Sent</button>`;
+  $('mo').classList.add('open');
+}
+function copySendBody(){
+  const body = $('send-body').value;
+  const subject = $('send-subject').value;
+  const text = `Subject: ${subject}\n\n${body}`;
+  navigator.clipboard.writeText(text).then(()=>{
+    toast('Message copied to clipboard. Paste it into your email.','success');
+  }).catch(()=>{
+    // Fallback
+    const ta=$('send-body');ta.select();document.execCommand('copy');
+    toast('Message body copied.','success');
+  });
+}
+function markAsSent(itemId){
+  const item=DB.automations.queue.find(q=>q.id===itemId);if(!item)return;
+  item.status='approved';
+  item.approvedAt=new Date().toISOString();
+  item.sentSubject=$('send-subject')?.value;
+  item.sentBody=$('send-body')?.value;
+  save();closeModal();renderQueue();updateBadge();renderAll();
+  toast('Marked as sent to '+item.donorName+'.','success');
 }
 
 function renderQueue(){
