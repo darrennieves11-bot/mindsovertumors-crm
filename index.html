@@ -1413,8 +1413,22 @@ function _fromSb(table, obj){
 
 async function sbSave(table,obj){
   if(!supabase||demoMode)return{ok:true};
-  const{error} = await supabase.from(table).upsert(_toSb(table,obj));
+  let payload = _toSb(table,obj);
+  let{error} = await supabase.from(table).upsert(payload);
   if(error){
+    // Schema not in sync? Try to recover by stripping the missing column and retrying.
+    const colMatch = error.message?.match(/['"](\w+)['"]\s+column/) || error.message?.match(/column\s+['"]?(\w+)['"]?/);
+    if(colMatch && colMatch[1] && colMatch[1] in payload){
+      const badCol = colMatch[1];
+      console.warn(`Column '${badCol}' not in ${table} schema yet — retrying without it. Run the schema-update SQL in Supabase to enable this field.`);
+      delete payload[badCol];
+      // Also strip related columns that may be missing together
+      const{error: retryErr} = await supabase.from(table).upsert(payload);
+      if(!retryErr){
+        return{ok:true, warning:`Saved without "${badCol}" — column missing in Supabase`};
+      }
+      error = retryErr;
+    }
     console.error('Supabase save error ('+table+'):', error.message, error.details||'', '— Record:', obj);
     toast(`⚠ Cloud sync failed for ${table}: ${error.message}. Saved locally.`,'error');
     return{ok:false, error};
