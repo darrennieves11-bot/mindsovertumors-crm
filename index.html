@@ -32,6 +32,11 @@ body{font-family:var(--f);background:var(--g100);color:var(--g700);font-size:13p
 /* ══════════════════════════════════
    LOGIN SCREEN
 ══════════════════════════════════ */
+/* Role-based access — hide admin-only elements from staff */
+body.role-staff [data-role-required="admin"]{display:none!important}
+.role-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--blue-bg);color:var(--blue-dd);border:1px solid var(--blue-border);margin-right:6px;margin-left:8px;vertical-align:middle}
+.role-badge.admin{background:#fff3c7;color:#7a5a00;border-color:#f0d070}
+
 #login-screen{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   min-height:100vh;background:var(--navy-dd);position:fixed;inset:0;z-index:9000;
@@ -498,8 +503,8 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
     <div class="hn" data-view="volunteers">Volunteers</div>
     <div class="hn" data-view="grants">Grants</div>
     <div class="hn" data-view="projects">Projects<span class="hn-badge" id="proj-badge">0</span></div>
-    <div class="hn" data-view="approvals" id="nav-approvals">Approvals<span class="hn-badge" id="approval-badge">0</span></div>
-    <div class="hn" data-view="automations">Automations</div>
+    <div class="hn" data-view="approvals" id="nav-approvals" data-role-required="admin">Approvals<span class="hn-badge" id="approval-badge">0</span></div>
+    <div class="hn" data-view="automations" data-role-required="admin">Automations</div>
     <div class="hn" data-view="schedule">Schedule</div>
     <div class="hn" data-view="onecause">OneCause</div>
     <div class="hn" data-view="social">Social</div>
@@ -511,11 +516,11 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
     </div>
     <div class="hdiv"></div>
     <button class="hb" onclick="quickAdd()" style="font-size:20px;font-weight:300;color:rgba(255,255,255,.6)" title="New Record">+</button>
-    <button class="hb" onclick="switchView('settings')" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="hb" onclick="switchView('settings')" title="Settings" data-role-required="admin"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <div class="hdiv"></div>
     <div id="user-menu" onclick="handleSignOut()">
       <div class="user-av" id="user-av">A</div>
-      <div><div class="user-name" id="user-name">Admin</div><div class="user-signout">Sign out</div></div>
+      <div><div class="user-name" id="user-name">Admin<span class="role-badge admin" id="user-role-badge" style="display:none">Admin</span></div><div class="user-signout">Sign out</div></div>
     </div>
   </div>
 </header>
@@ -535,12 +540,12 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
     <button class="rb" data-view="grants"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="rtt">Grants</span></button>
     <button class="rb" data-view="projects" id="rail-projects"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span class="rtt">Projects</span><span class="rb-badge" id="rail-proj-badge">0</span></button>
     <div class="rsep"></div>
-    <button class="rb" data-view="approvals" id="rail-approvals"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="rtt">Approvals</span><span class="rb-badge" id="rail-badge">0</span></button>
-    <button class="rb" data-view="automations"><svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="rtt">Automations</span></button>
+    <button class="rb" data-view="approvals" id="rail-approvals" data-role-required="admin"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="rtt">Approvals</span><span class="rb-badge" id="rail-badge">0</span></button>
+    <button class="rb" data-view="automations" data-role-required="admin"><svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="rtt">Automations</span></button>
     <button class="rb" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rtt">Schedule</span></button>
     <button class="rb" data-view="onecause"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="rtt">OneCause</span></button>
     <button class="rb" data-view="social"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span class="rtt">Social Hub</span></button>
-    <button class="rb" data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="rtt">Settings</span></button>
+    <button class="rb" data-view="settings" data-role-required="admin"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="rtt">Settings</span></button>
   </div>
 
   <!-- SIDEBAR -->
@@ -600,6 +605,10 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
             <div class="ph"><h3>Pending Approvals</h3><button class="btn-ghost btn" onclick="switchView('approvals')">Review all →</button></div>
             <div id="d-aq"></div>
           </div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <div class="ph"><h3>Recent Activity</h3><button class="btn-ghost btn" onclick="renderActivityFeed()">Refresh →</button></div>
+          <div id="activity-feed" style="max-height:380px;overflow-y:auto"></div>
         </div>
       </div>
 
@@ -904,15 +913,18 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           <div class="settings-row"><div><div class="sr-label">Your Name</div><div class="sr-desc">For letter sign-offs</div></div><input style="width:260px" id="set-name" placeholder="Your full name"></div>
         </div>
 
-        <!-- Team Access -->
-        <div class="settings-section">
-          <h3>Team Access</h3>
+        <!-- Team Members (admin only) -->
+        <div class="settings-section" data-role-required="admin">
+          <h3>Team Members &amp; Roles</h3>
           <div style="padding:14px 18px">
-            <p style="font-size:12.5px;color:var(--g500);margin-bottom:14px;line-height:1.6">Once Supabase is connected, invite team members via the Supabase dashboard under <strong>Authentication → Users → Invite User</strong>. They'll receive an email and can sign in with their own credentials.</p>
-            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;max-width:440px">
-              <div class="ff"><label>Invite by Email</label><input id="invite-email" type="email" placeholder="colleague@mindsovertumors.org"></div>
-              <div style="align-self:flex-end"><button class="btn btn-primary" onclick="inviteUser()">Send Invite</button></div>
+            <p style="font-size:12.5px;color:var(--g500);margin-bottom:14px;line-height:1.6"><strong>How team access works:</strong> Invite people via Supabase Dashboard → Authentication → Users → Invite User. Once they sign in, they appear here. New users default to <strong>Staff</strong> role. Promote to <strong>Admin</strong> to grant full access (Settings, Approvals, Delete, etc.).</p>
+            <div id="team-members-list" style="margin-bottom:14px"></div>
+            <div style="display:grid;grid-template-columns:1fr 140px auto;gap:10px;align-items:end">
+              <div class="ff" style="margin-bottom:0"><label>Add Team Member by Email</label><input id="add-user-email" type="email" placeholder="colleague@mindsovertumors.org"></div>
+              <div class="ff" style="margin-bottom:0"><label>Role</label><select id="add-user-role"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+              <button class="btn btn-primary btn-sm" onclick="addTeamMember()">Add</button>
             </div>
+            <p style="font-size:11.5px;color:var(--g500);margin-top:10px;line-height:1.6">Adding here pre-assigns their role. They still need to be invited via Supabase Dashboard and complete their sign-up to actually log in.</p>
           </div>
         </div>
 
@@ -971,6 +983,158 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 let supabase=null;
 let currentUser=null;
 let demoMode=true;
+let currentRole='admin'; // default before login; updated on sign-in
+
+// ════════════════════════════════════════════════════
+// ROLE-BASED ACCESS CONTROL
+// ════════════════════════════════════════════════════
+const STAFF_PERMISSIONS = new Set([
+  'view_dashboard','view_donors','edit_donors',
+  'view_donations','edit_donations',
+  'view_campaigns','view_events','edit_events',
+  'view_volunteers','edit_volunteers',
+  'view_grants','view_projects',
+  'view_onecause','use_onecause',
+  'view_schedule','view_automations'
+]);
+function can(action){
+  if(currentRole==='admin')return true;
+  return STAFF_PERMISSIONS.has(action);
+}
+function applyRolePermissions(){
+  document.body.classList.remove('role-admin','role-staff');
+  document.body.classList.add('role-'+currentRole);
+  // Show role badge in header
+  const badge = $('user-role-badge');
+  if(badge){
+    badge.textContent = currentRole === 'admin' ? 'Admin' : 'Staff';
+    badge.style.display = currentUser ? 'inline-flex' : 'none';
+  }
+}
+
+async function determineRole(email){
+  if(!supabase || demoMode){currentRole='admin';return}
+  if(!email){currentRole='staff';return}
+  const emailLower = email.toLowerCase();
+  try{
+    // Check if user has an assigned role
+    const{data:userRow,error} = await supabase.from('user_roles').select('role').eq('email',emailLower).maybeSingle();
+    if(error && !(error.code==='PGRST116' || error.message?.includes('No rows'))){
+      // Table doesn't exist or permission denied — fall back gracefully
+      console.warn('user_roles lookup failed, defaulting to admin:', error.message);
+      currentRole='admin';
+      return;
+    }
+    if(userRow && userRow.role){
+      currentRole = userRow.role;
+      return;
+    }
+    // No role yet — is anyone in the table?
+    const{data:anyRows} = await supabase.from('user_roles').select('email').limit(1);
+    if(!anyRows || anyRows.length===0){
+      // First user — become admin
+      await supabase.from('user_roles').upsert({email:emailLower, role:'admin', added_by:'system (first user)'});
+      currentRole='admin';
+      console.log('First user — granted admin role to', emailLower);
+    } else {
+      // New user — default to staff
+      await supabase.from('user_roles').upsert({email:emailLower, role:'staff', added_by:'system (default)'});
+      currentRole='staff';
+    }
+  }catch(e){
+    console.warn('Role lookup failed, defaulting to staff:', e);
+    currentRole='staff';
+  }
+}
+
+// ════════════════════════════════════════════════════
+// AUDIT TRAIL & ACTIVITY LOG
+// ════════════════════════════════════════════════════
+function whoAmI(){
+  if(demoMode)return 'demo';
+  return (currentUser?.email || 'unknown').toLowerCase();
+}
+function displayName(email){
+  if(!email)return '—';
+  if(email==='demo')return 'Demo';
+  if(email==='system (first user)'||email==='system (default)')return 'System';
+  return email.split('@')[0];
+}
+function addAudit(obj, isNew){
+  const me = whoAmI();
+  if(isNew){
+    obj.created_by = me;
+  } else {
+    obj.updated_by = me;
+    obj.updated_at = new Date().toISOString();
+  }
+  return obj;
+}
+async function logActivity(action, entityType, entityId, entityLabel, details){
+  if(!supabase || demoMode)return;
+  try{
+    await supabase.from('activity_log').insert({
+      user_email: whoAmI(),
+      action: action,
+      entity_type: entityType,
+      entity_id: entityId,
+      entity_label: entityLabel,
+      details: details || null
+    });
+  }catch(e){
+    // Silent — don't block save operations if log fails
+    console.warn('Activity log failed:', e?.message||e);
+  }
+}
+function fmtRelativeTime(iso){
+  if(!iso)return '';
+  const now = Date.now();
+  const t = new Date(iso).getTime();
+  const diff = (now - t) / 1000;
+  if(diff < 60)return 'just now';
+  if(diff < 3600)return Math.floor(diff/60)+' min ago';
+  if(diff < 86400)return Math.floor(diff/3600)+' hr ago';
+  if(diff < 604800)return Math.floor(diff/86400)+'d ago';
+  return new Date(iso).toLocaleDateString();
+}
+async function renderActivityFeed(){
+  const el = $('activity-feed'); if(!el) return;
+  if(!supabase || demoMode){
+    el.innerHTML = '<div style="font-size:12px;color:var(--g500);padding:14px;background:var(--g50);border-radius:var(--r)">Activity tracking active when signed in to Supabase.</div>';
+    return;
+  }
+  try{
+    const{data, error} = await supabase.from('activity_log').select('*').order('created_at',{ascending:false}).limit(20);
+    if(error){
+      if(error.message?.includes('does not exist') || error.code==='PGRST205'){
+        el.innerHTML = `<div style="background:#fff8e1;border:1px solid #f0d070;border-radius:var(--r);padding:11px 14px;font-size:12px;color:#7a5a00">Activity log table not set up yet. Run the audit SQL in Supabase (see Settings).</div>`;
+        return;
+      }
+      el.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px">Could not load activity.</div>';
+      return;
+    }
+    if(!data || !data.length){
+      el.innerHTML = '<div style="font-size:12px;color:var(--g500);padding:14px;background:var(--g50);border-radius:var(--r)">No activity yet. Add a donor or create an event to start the log.</div>';
+      return;
+    }
+    const actionEmoji = {created:'+',updated:'✎',deleted:'×',approved:'✓',sent:'→',disbursed:'$'};
+    el.innerHTML = data.map(a=>{
+      const who = displayName(a.user_email);
+      const isYou = a.user_email && a.user_email.toLowerCase() === whoAmI();
+      const verb = a.action || 'changed';
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-bottom:1px solid var(--g150)">
+        <div style="width:24px;height:24px;border-radius:50%;background:${isYou?'var(--blue)':'var(--g300)'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;text-transform:uppercase">${(who[0]||'?').toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12.5px;color:var(--navy);line-height:1.4"><strong>${esc(who)}</strong>${isYou?' <span style="font-size:10.5px;color:var(--g500);font-weight:400">(you)</span>':''} ${esc(verb)} ${esc(a.entity_type||'')} ${a.entity_label?`<span style="color:var(--blue-dd);font-weight:500">"${esc(a.entity_label)}"</span>`:''}</div>
+          <div style="font-size:11px;color:var(--g500);margin-top:1px">${fmtRelativeTime(a.created_at)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.warn('Activity feed load failed:',e);
+    el.innerHTML = '<div style="font-size:12px;color:var(--red);padding:8px">Error loading activity.</div>';
+  }
+}
 
 async function initSupabase(url,key){
   if(!url||!key)return false;
@@ -1098,13 +1262,16 @@ async function handleLogin(){
   if(error){showLoginError(error.message);setLoginLoading(false);return}
   currentUser=data.user;
   demoMode=false;
+  await determineRole(currentUser.email);
   enterApp(email.split('@')[0]);
+  applyRolePermissions();
   loadFromSupabase();
 }
 
 function handleDemoLogin(){
-  demoMode=true;currentUser=null;
+  demoMode=true;currentUser=null;currentRole='admin';
   enterApp('Admin');
+  applyRolePermissions();
 }
 
 function enterApp(name){
@@ -1398,7 +1565,7 @@ function openModal(type,id=null){
       <div class="ff full"><label>Address</label><input id="f-ad" value="${esc(d?.address)}"></div>
       <div class="ff full"><label>Notes</label><textarea id="f-no">${esc(d?.notes)}</textarea></div>
     </div>`;
-    F.innerHTML=`${d?`<button class="btn btn-danger btn-sm" onclick="delDonor(${d.id})">Delete</button><span style="flex:1"></span>`:''}
+    F.innerHTML=`${d?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delDonor(${d.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveDonor(${d?d.id:null})">${d?'Save Changes':'Create Contact'}</button>`;
   }
@@ -1430,7 +1597,7 @@ function openModal(type,id=null){
       <div class="ff"><label>End Date</label><input id="f-ced" type="date" value="${c?.end||''}"></div>
       <div class="ff full"><label>Description</label><textarea id="f-cd">${esc(c?.desc)}</textarea></div>
     </div>`;
-    F.innerHTML=`${c?`<button class="btn btn-danger btn-sm" onclick="delCamp(${c.id})">Delete</button><span style="flex:1"></span>`:''}
+    F.innerHTML=`${c?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delCamp(${c.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveCamp(${c?c.id:null})">${c?'Save Changes':'Create Campaign'}</button>`;
   }
@@ -1440,14 +1607,30 @@ function openModal(type,id=null){
     _evtAttachBuf = e?.attachments ? JSON.parse(JSON.stringify(e.attachments)) : [];
     $('modal-box').className='modal modal-lg';
     T.textContent=e?'Edit Event':'New Event';
+    const currentVis = e?.visibility || 'shared';
+    const isPersonal = currentVis === 'personal';
+    const creatorEmail = e?.created_by;
     B.innerHTML=`<div class="fg">
       <div class="ff full"><label>Event Name *</label><input id="f-en" value="${esc(e?.name)}"></div>
       <div class="ff"><label>Date *</label><input id="f-ed" type="date" value="${e?.date||''}"></div>
-      <div class="ff"><label>Type</label><select id="f-ety">${['Gala','Auction','Community Event','Walk / Run','Virtual Event','Other'].map(o=>`<option${(e?.type===o||(!e&&o==='Gala'))?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff"><label>Type</label><select id="f-ety">${['Gala','Auction','Community Event','Walk / Run','Virtual Event','Personal Task','Other'].map(o=>`<option${(e?.type===o||(!e&&o==='Gala'))?' selected':''}>${o}</option>`).join('')}</select></div>
       <div class="ff"><label>Venue</label><input id="f-ev" value="${esc(e?.venue)}"></div>
       <div class="ff"><label>Revenue Goal ($)</label><input id="f-eg" type="number" value="${e?.goal||''}"></div>
       <div class="ff"><label>Expected Attendees</label><input id="f-ea" type="number" value="${e?.attendees||''}"></div>
       <div class="ff"><label>Status</label><select id="f-es">${['Planned','Active','Completed','Cancelled'].map(o=>`<option${(e?.status===o||(!e&&o==='Planned'))?' selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="ff full">
+        <label>Visibility</label>
+        <div style="display:flex;flex-direction:column;gap:8px;padding:10px 14px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);font-size:13px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="radio" name="evt-visibility" value="shared" ${!isPersonal?'checked':''}>
+            <span><strong>Shared</strong> <span style="color:var(--g500);font-size:11.5px">— everyone on the team sees this event</span></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="radio" name="evt-visibility" value="personal" ${isPersonal?'checked':''}>
+            <span><strong>Personal</strong> <span style="color:var(--g500);font-size:11.5px">— only you see this (admin can also see all events)</span></span>
+          </label>
+        </div>
+      </div>
       <div class="ff full"><label>Notes</label><textarea id="f-eno" rows="4">${esc(e?.desc)}</textarea></div>
       <div class="ff full">
         <label>Attachments <span style="font-weight:400;color:var(--g500);font-size:11px">(images, PDFs, docs — max 25 MB each)</span></label>
@@ -1455,8 +1638,9 @@ function openModal(type,id=null){
         <input type="file" id="f-eatt" multiple style="display:none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" onchange="uploadEventAttachment()">
         <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('f-eatt').click()">+ Add File</button>
       </div>
+      ${e&&creatorEmail?`<div class="ff full" style="font-size:11.5px;color:var(--g500);padding:8px 0;border-top:1px solid var(--g150)">Created by <strong>${esc(displayName(creatorEmail))}</strong>${e.created_at?' on '+new Date(e.created_at).toLocaleDateString():''}${e.updated_by&&e.updated_by!==creatorEmail?` · last edited by <strong>${esc(displayName(e.updated_by))}</strong>`:''}${e.updated_at?' '+fmtRelativeTime(e.updated_at):''}</div>`:''}
     </div>`;
-    F.innerHTML=`${e?`<button class="btn btn-danger btn-sm" onclick="delEv(${e.id})">Delete</button><span style="flex:1"></span>`:''}
+    F.innerHTML=`${e?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delEv(${e.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveEv(${e?e.id:null})">${e?'Save Changes':'Create Event'}</button>`;
     renderAttachmentList();
@@ -1474,7 +1658,7 @@ function openModal(type,id=null){
       <div class="ff"><label>Hours Logged</label><input id="f-vh" type="number" value="${v?.hours||0}" min="0"></div>
       <div class="ff full"><label>Notes</label><textarea id="f-vn">${esc(v?.notes)}</textarea></div>
     </div>`;
-    F.innerHTML=`${v?`<button class="btn btn-danger btn-sm" onclick="delVol(${v.id})">Delete</button><span style="flex:1"></span>`:''}
+    F.innerHTML=`${v?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delVol(${v.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveVol(${v?v.id:null})">${v?'Save Changes':'Add Volunteer'}</button>`;
   }
@@ -1521,7 +1705,7 @@ function openModal(type,id=null){
       </div>`;
     let footer='';
     if(p){
-      footer+=`<button class="btn btn-danger btn-sm" onclick="delProject(${p.id})">Delete</button><span style="flex:1"></span>`;
+      footer+=`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delProject(${p.id})">Delete</button><span style="flex:1"></span>`;
       if(p.status==='Approved'||p.status==='In Progress'){
         footer+=`<button class="btn btn-outline" onclick="recordDisbursement(${p.id})">+ Record Disbursement</button>`;
       }
@@ -1568,7 +1752,7 @@ function openModal(type,id=null){
       <div class="ff"><label>Location</label><input id="f-sloc" value="${esc(s?.location)}" placeholder="Zoom, office, venue…"></div>
       <div class="ff full"><label>Notes</label><textarea id="f-snotes">${esc(s?.notes)}</textarea></div>
     </div>`;
-    F.innerHTML=`${s?`<button class="btn btn-danger btn-sm" onclick="delSchedule(${s.id})">Delete</button><span style="flex:1"></span>`:''}
+    F.innerHTML=`${s?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delSchedule(${s.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSchedule(${s?s.id:null})">${s?'Save Changes':'Add to Schedule'}</button>`;
   }
@@ -1713,28 +1897,35 @@ function copySQL(){
 async function saveDonor(eid){
   const fn=vf('f-fn'),ln=vf('f-ln');
   if(!fn||!ln){alert('First and last name required.');return}
-  const obj={id:eid||nid('donors'),fname:fn,lname:ln,email:vf('f-em'),phone:vf('f-ph'),org:vf('f-or'),type:vf('f-ty'),status:vf('f-st'),tags:vf('f-tg'),address:vf('f-ad'),notes:vf('f-no'),created:eid?DB.donors.find(x=>x.id===eid)?.created:new Date().toISOString()};
+  const existing = eid?DB.donors.find(x=>x.id===eid):null;
+  const obj={id:eid||nid('donors'),fname:fn,lname:ln,email:vf('f-em'),phone:vf('f-ph'),org:vf('f-or'),type:vf('f-ty'),status:vf('f-st'),tags:vf('f-tg'),address:vf('f-ad'),notes:vf('f-no'),created:existing?.created||new Date().toISOString(),created_by:existing?.created_by||whoAmI()};
+  addAudit(obj, !eid);
   if(eid)DB.donors[DB.donors.findIndex(x=>x.id===eid)]=obj;
   else DB.donors.push(obj);
   save();
-  await sbSave('donors',{...obj,fname:obj.fname,lname:obj.lname});
+  await sbSave('donors',obj);
+  logActivity(eid?'updated':'created','donor',obj.id,`${obj.fname} ${obj.lname}`);
   closeModal();renderAll();toast(eid?'Contact updated.':'Contact created!','success');
 }
 async function delDonor(id){
+  const d=DB.donors.find(x=>x.id===id);
   if(!confirm('Delete this contact?'))return;
   DB.donors=DB.donors.filter(x=>x.id!==id);
   DB.donations=DB.donations.filter(x=>x.donorId!==id);
   save();await sbDelete('donors',id);
+  if(d)logActivity('deleted','donor',id,`${d.fname} ${d.lname}`);
   closeModal();closePanel();renderAll();toast('Contact deleted.');
 }
 
 async function saveDon(){
   const did=parseInt(vf('f-dd')),amt=parseFloat($('f-da').value);
   if(!did||!amt){alert('Please select a donor and enter an amount.');return}
-  const rec={id:nid('donations'),donorId:did,amount:amt,date:vf('f-dt'),type:vf('f-dty'),campaignId:parseInt(vf('f-dc'))||null,payment:vf('f-dp'),notes:vf('f-dn'),receipt:'MOT-'+String(Date.now()).slice(-7)};
+  const rec={id:nid('donations'),donorId:did,amount:amt,date:vf('f-dt'),type:vf('f-dty'),campaignId:parseInt(vf('f-dc'))||null,payment:vf('f-dp'),notes:vf('f-dn'),receipt:'MOT-'+String(Date.now()).slice(-7),created_by:whoAmI()};
   DB.donations.push(rec);
   triggerAutomations(rec);
   save();await sbSave('donations',rec);
+  const dn=DB.donors.find(x=>x.id===did);
+  logActivity('recorded','donation',rec.id,`$${amt.toLocaleString()} from ${dn?dn.fname+' '+dn.lname:'donor'}`);
   closeModal();renderAll();
   const p=DB.automations.queue.filter(q=>q.status==='pending').length;
   toast(`Gift recorded — ${rec.receipt}. ${p} document${p!==1?'s':''} pending approval.`,'success');
@@ -1742,32 +1933,47 @@ async function saveDon(){
 
 async function saveCamp(eid){
   const name=vf('f-cn');if(!name){alert('Name required.');return}
-  const obj={id:eid||nid('campaigns'),name,goal:parseFloat($('f-cg').value)||0,status:vf('f-cs'),start:vf('f-csd'),end:vf('f-ced'),desc:vf('f-cd')};
+  const existing = eid?DB.campaigns.find(x=>x.id===eid):null;
+  const obj={id:eid||nid('campaigns'),name,goal:parseFloat($('f-cg').value)||0,status:vf('f-cs'),start:vf('f-csd'),end:vf('f-ced'),desc:vf('f-cd'),created_by:existing?.created_by||whoAmI()};
+  addAudit(obj, !eid);
   if(eid)DB.campaigns[DB.campaigns.findIndex(x=>x.id===eid)]=obj;else DB.campaigns.push(obj);
-  save();await sbSave('campaigns',obj);closeModal();renderAll();toast(eid?'Updated.':'Campaign created!','success');
+  save();await sbSave('campaigns',obj);
+  logActivity(eid?'updated':'created','campaign',obj.id,name);
+  closeModal();renderAll();toast(eid?'Updated.':'Campaign created!','success');
 }
-async function delCamp(id){if(!confirm('Delete?'))return;DB.campaigns=DB.campaigns.filter(x=>x.id!==id);save();await sbDelete('campaigns',id);closeModal();renderAll();toast('Deleted.')}
+async function delCamp(id){const c=DB.campaigns.find(x=>x.id===id);if(!confirm('Delete?'))return;DB.campaigns=DB.campaigns.filter(x=>x.id!==id);save();await sbDelete('campaigns',id);if(c)logActivity('deleted','campaign',id,c.name);closeModal();renderAll();toast('Deleted.')}
 
 async function saveEv(eid){
   const name=vf('f-en'),date=vf('f-ed');if(!name||!date){alert('Name and date required.');return}
-  const obj={id:eid||nid('events'),name,date,type:vf('f-ety'),venue:vf('f-ev'),goal:parseFloat($('f-eg').value)||0,attendees:parseInt($('f-ea').value)||0,status:vf('f-es'),desc:vf('f-eno'),attachments:_evtAttachBuf||[]};
+  const visibility = (document.querySelector('input[name="evt-visibility"]:checked')?.value) || 'shared';
+  const existing = eid?DB.events.find(x=>x.id===eid):null;
+  const obj={id:eid||nid('events'),name,date,type:vf('f-ety'),venue:vf('f-ev'),goal:parseFloat($('f-eg').value)||0,attendees:parseInt($('f-ea').value)||0,status:vf('f-es'),desc:vf('f-eno'),attachments:_evtAttachBuf||[],visibility,created_by:existing?.created_by||whoAmI()};
+  addAudit(obj, !eid);
   if(eid)DB.events[DB.events.findIndex(x=>x.id===eid)]=obj;else DB.events.push(obj);
-  save();await sbSave('events',obj);closeModal();renderAll();_evtAttachBuf=[];toast(eid?'Updated.':'Event created!','success');
+  save();await sbSave('events',obj);
+  logActivity(eid?'updated':'created','event',obj.id,name+(visibility==='personal'?' (personal)':''));
+  closeModal();renderAll();_evtAttachBuf=[];toast(eid?'Updated.':'Event created!','success');
 }
-async function delEv(id){if(!confirm('Delete?'))return;DB.events=DB.events.filter(x=>x.id!==id);save();await sbDelete('events',id);closeModal();renderAll();toast('Deleted.')}
+async function delEv(id){const e=DB.events.find(x=>x.id===id);if(!confirm('Delete?'))return;DB.events=DB.events.filter(x=>x.id!==id);save();await sbDelete('events',id);if(e)logActivity('deleted','event',id,e.name);closeModal();renderAll();toast('Deleted.')}
 
 async function saveVol(eid){
   const fn=vf('f-vf'),ln=vf('f-vl');if(!fn||!ln){alert('Name required.');return}
-  const obj={id:eid||nid('volunteers'),fname:fn,lname:ln,email:vf('f-ve'),phone:vf('f-vp'),role:vf('f-vr'),hours:parseFloat($('f-vh').value)||0,notes:vf('f-vn'),status:'Active'};
+  const existing = eid?DB.volunteers.find(x=>x.id===eid):null;
+  const obj={id:eid||nid('volunteers'),fname:fn,lname:ln,email:vf('f-ve'),phone:vf('f-vp'),role:vf('f-vr'),hours:parseFloat($('f-vh').value)||0,notes:vf('f-vn'),status:'Active',created_by:existing?.created_by||whoAmI()};
+  addAudit(obj, !eid);
   if(eid)DB.volunteers[DB.volunteers.findIndex(x=>x.id===eid)]=obj;else DB.volunteers.push(obj);
-  save();await sbSave('volunteers',obj);closeModal();renderAll();toast(eid?'Updated.':'Volunteer added!','success');
+  save();await sbSave('volunteers',obj);
+  logActivity(eid?'updated':'created','volunteer',obj.id,`${fn} ${ln}`);
+  closeModal();renderAll();toast(eid?'Updated.':'Volunteer added!','success');
 }
-async function delVol(id){if(!confirm('Delete?'))return;DB.volunteers=DB.volunteers.filter(x=>x.id!==id);save();await sbDelete('volunteers',id);closeModal();renderAll();toast('Deleted.')}
+async function delVol(id){const v=DB.volunteers.find(x=>x.id===id);if(!confirm('Delete?'))return;DB.volunteers=DB.volunteers.filter(x=>x.id!==id);save();await sbDelete('volunteers',id);if(v)logActivity('deleted','volunteer',id,`${v.fname} ${v.lname}`);closeModal();renderAll();toast('Deleted.')}
 
 async function saveGrant(){
   const name=vf('f-gn');if(!name){alert('Name required.');return}
-  const obj={id:nid('grants'),name,type:vf('f-gt'),amount:parseFloat($('f-ga').value)||0,date:vf('f-gd'),status:vf('f-gs'),notes:vf('f-gno')};
-  DB.grants.push(obj);save();await sbSave('grants',obj);closeModal();renderAll();toast('Added!','success');
+  const obj={id:nid('grants'),name,type:vf('f-gt'),amount:parseFloat($('f-ga').value)||0,date:vf('f-gd'),status:vf('f-gs'),notes:vf('f-gno'),created_by:whoAmI()};
+  DB.grants.push(obj);save();await sbSave('grants',obj);
+  logActivity('created','grant',obj.id,name);
+  closeModal();renderAll();toast('Added!','success');
 }
 
 function saveSchedule(eid){
@@ -2344,20 +2550,25 @@ async function saveProject(eid){
     notes:vf('f-pnotes'),
     approved_by:existing?existing.approved_by:'',
     approved_at:existing?existing.approved_at:'',
-    created_at:existing?existing.created_at:new Date().toISOString()
+    created_at:existing?existing.created_at:new Date().toISOString(),
+    created_by:existing?.created_by||whoAmI()
   };
+  addAudit(obj, !eid);
   if(eid){DB.projects[DB.projects.findIndex(x=>x.id===eid)]=obj}
   else{DB.projects.push(obj)}
   save();
   await sbSave('projects',obj);
+  logActivity(eid?'updated':'created','project',obj.id,name);
   closeModal();renderAll();
   toast(eid?'Project updated.':'Project created — awaiting approval.','success');
 }
 
 async function delProject(id){
+  const p=DB.projects.find(x=>x.id===id);
   if(!confirm('Delete this project? This cannot be undone.'))return;
   DB.projects=DB.projects.filter(x=>x.id!==id);
   save();await sbDelete('projects',id);
+  if(p)logActivity('deleted','project',id,p.name);
   closeModal();renderAll();
   toast('Project deleted.','success');
 }
@@ -2367,10 +2578,11 @@ async function approveProject(id){
   if(!p)return;
   if(!confirm('Approve "'+p.name+'" for $'+(p.amount||0).toLocaleString()+'?\n\nOnce approved, funds can be disbursed.'))return;
   p.status='Approved';
-  p.approved_by=DB.settings.name||'Staff';
+  p.approved_by=whoAmI();
   p.approved_at=new Date().toISOString();
   save();
   await sbSave('projects',p);
+  logActivity('approved','project',p.id,p.name+' ($'+(p.amount||0).toLocaleString()+')');
   closeModal();renderAll();
   toast('Project approved! You can now record disbursements.','success');
 }
@@ -2390,16 +2602,15 @@ async function saveDisbursement(projectId){
     if(!confirm(`Disbursement of $${amt.toLocaleString()} exceeds remaining commitment of $${remaining.toLocaleString()}. Continue anyway?`))return;
   }
   p.disbursed=(p.disbursed||0)+amt;
-  // Append to impact log
   const date=vf('f-disdate')||new Date().toISOString().slice(0,10);
   const note=vf('f-disnotes');
-  const entry=`[${date}] Disbursed $${amt.toLocaleString()}${note?' — '+note:''}`;
+  const entry=`[${date}] Disbursed $${amt.toLocaleString()} by ${whoAmI()}${note?' — '+note:''}`;
   p.impact=p.impact?p.impact+'\n'+entry:entry;
-  // Auto-progress status
   if(p.status==='Approved')p.status='In Progress';
   if(p.disbursed>=p.amount)p.status='Completed';
   save();
   await sbSave('projects',p);
+  logActivity('disbursed','project',p.id,`$${amt.toLocaleString()} for ${p.name}`);
   closeModal();renderAll();
   toast('Disbursement recorded: $'+amt.toLocaleString(),'success');
 }
@@ -2811,6 +3022,7 @@ function loadSettings(){
   if($('set-sb-url'))$('set-sb-url').value=s.sbUrl||'';
   if($('set-sb-key'))$('set-sb-key').value=s.sbKey||'';
   renderRaisedResetStatus();
+  renderTeamMembers();
 }
 function saveSettings(){
   if(!DB.settings)DB.settings={};
@@ -2826,7 +3038,77 @@ function saveSettings(){
 }
 function exportAll(){const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(DB,null,2));a.download='MOT-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Backup downloaded!','success')}
 function importData(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{Object.assign(DB,JSON.parse(e.target.result));save();renderAll();loadSettings();renderAutoRules();renderQueue();updateBadge();toast('Data imported!','success');}catch(err){alert('Invalid backup file.')}};reader.readAsText(file)}
-function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Final confirmation — this cannot be undone?'))return;['donors','donations','campaigns','events','volunteers','grants','schedule'].forEach(k=>DB[k]=[]);DB.automations.queue=[];DB._n={donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,schedule:1};Object.keys(DB.automations.rules).forEach(k=>{DB.automations.rules[k].sent=0});save();renderAll();updateBadge();toast('All data cleared.')}
+function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Final confirmation — this cannot be undone?'))return;['donors','donations','campaigns','events','volunteers','grants','projects','schedule'].forEach(k=>DB[k]=[]);DB.automations.queue=[];DB._n={donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,projects:1,schedule:1};Object.keys(DB.automations.rules).forEach(k=>{DB.automations.rules[k].sent=0});save();renderAll();updateBadge();toast('All local data cleared. (Supabase data still intact — truncate it via SQL Editor if needed.)','success')}
+
+// ════════════════════════════════════════════════════
+// TEAM MEMBERS MANAGEMENT
+// ════════════════════════════════════════════════════
+async function renderTeamMembers(){
+  const list = $('team-members-list');
+  if(!list) return;
+  if(!supabase || demoMode){
+    list.innerHTML = '<div style="font-size:12px;color:var(--g500);padding:14px;background:var(--g50);border-radius:var(--r)">Connect Supabase to manage team members.</div>';
+    return;
+  }
+  try{
+    const{data, error} = await supabase.from('user_roles').select('*').order('created_at',{ascending:true});
+    if(error){
+      if(error.message?.includes('does not exist') || error.code==='PGRST205'){
+        list.innerHTML = `<div style="background:#fff8e1;border:1px solid #f0d070;border-radius:var(--r);padding:11px 14px;font-size:12.5px;color:#7a5a00">The <code>user_roles</code> table doesn't exist yet. Run this SQL in Supabase to enable role management:<pre style="margin-top:8px;font-size:11px;background:#fff;padding:8px;border-radius:4px;overflow-x:auto">create table if not exists user_roles (email text primary key, role text not null default 'staff', added_by text, created_at timestamptz default now());
+alter table user_roles enable row level security;
+create policy "auth_full_roles" on user_roles for all using (auth.role() = 'authenticated');</pre></div>`;
+        return;
+      }
+      list.innerHTML = `<div style="color:var(--red);font-size:12px;padding:14px">Error loading team: ${esc(error.message)}</div>`;
+      return;
+    }
+    if(!data || !data.length){
+      list.innerHTML = '<div style="font-size:12px;color:var(--g500);padding:14px;background:var(--g50);border-radius:var(--r)">No team members yet. Add one below.</div>';
+      return;
+    }
+    list.innerHTML = data.map(u=>{
+      const isYou = currentUser?.email?.toLowerCase() === u.email.toLowerCase();
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);margin-bottom:6px">
+        <div style="font-size:13px;font-weight:600;color:var(--navy);flex:1">${esc(u.email)} ${isYou?'<span style="font-size:11px;color:var(--g500);font-weight:400">(you)</span>':''}</div>
+        <select onchange="changeRole('${esc(u.email)}',this.value)" ${isYou?'disabled':''} style="padding:6px 10px;font-size:12px;border:1px solid var(--g200);border-radius:6px;background:#fff">
+          <option value="staff" ${u.role==='staff'?'selected':''}>Staff</option>
+          <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+        </select>
+        ${isYou?'':`<button class="btn btn-danger btn-sm" onclick="removeTeamMember('${esc(u.email)}')">Remove</button>`}
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error('Team load failed:',e);
+    list.innerHTML = `<div style="color:var(--red);font-size:12px;padding:14px">Couldn't load team: ${esc(e.message)}</div>`;
+  }
+}
+
+async function addTeamMember(){
+  const email = vf('add-user-email').toLowerCase();
+  const role = vf('add-user-role');
+  if(!email || !email.includes('@')){toast('Enter a valid email.','error');return}
+  if(!supabase || demoMode){toast('Connect Supabase first.','error');return}
+  const{error} = await supabase.from('user_roles').upsert({email, role, added_by:currentUser?.email||'admin'});
+  if(error){toast('Failed: '+error.message,'error');return}
+  $('add-user-email').value = '';
+  await renderTeamMembers();
+  toast(`${email} added as ${role}. They need to be invited via Supabase Dashboard if not yet a user.`,'success');
+}
+
+async function changeRole(email, role){
+  if(!confirm(`Change ${email}'s role to ${role}?`)){await renderTeamMembers();return}
+  const{error} = await supabase.from('user_roles').update({role}).eq('email',email);
+  if(error){toast('Failed: '+error.message,'error');await renderTeamMembers();return}
+  toast(`${email} is now ${role}.`,'success');
+}
+
+async function removeTeamMember(email){
+  if(!confirm(`Remove ${email}?\n\nThey'll lose their role assignment. (Note: this doesn't delete their Supabase auth user — do that in the Supabase Dashboard.)`))return;
+  const{error} = await supabase.from('user_roles').delete().eq('email',email);
+  if(error){toast('Failed: '+error.message,'error');return}
+  await renderTeamMembers();
+  toast(`${email} removed.`,'success');
+}
 
 // ════════════════════════════════════════════════════
 // EXPORT CSV
@@ -2914,6 +3196,8 @@ function rDash(){
   const yrD=DB.donations.filter(d=>d.date&&d.date.startsWith(yr));
   if($('d-raised'))$('d-raised').textContent=(tot).toLocaleString();
   if($('sb-raised'))$('sb-raised').textContent=(tot).toLocaleString();
+  // Render the recent activity feed (background-loads from Supabase)
+  renderActivityFeed();
   if($('d-donors'))$('d-donors').textContent=DB.donors.length;
   if($('d-year'))$('d-year').textContent=yrD.reduce((s,d)=>s+d.amount,0).toLocaleString();
   if($('d-yrs'))$('d-yrs').textContent=yrD.length+' gift'+(yrD.length!==1?'s':'')+' this year';
@@ -3043,19 +3327,32 @@ function rCamps(){
 
 function rEvs(){
   const g=$('evgrid');if(!g)return;
-  if(!DB.events.length){g.innerHTML=mkE('<rect x="3" y="4" width="18" height="18" rx="2"/>','No events yet.','Create Event',"openModal('event')");return}
-  g.innerHTML=DB.events.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>`
-    <div class="evcard" onclick="openModal('event',${e.id})">
+  // Visibility filter: admin sees all; staff sees shared + their own personal
+  let events = DB.events.slice();
+  if(currentRole !== 'admin'){
+    const me = whoAmI();
+    events = events.filter(e =>
+      (e.visibility !== 'personal') ||
+      (e.created_by && e.created_by.toLowerCase() === me)
+    );
+  }
+  if(!events.length){g.innerHTML=mkE('<rect x="3" y="4" width="18" height="18" rx="2"/>','No events yet.','Create Event',"openModal('event')");return}
+  g.innerHTML=events.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(e=>{
+    const isPersonal = e.visibility === 'personal';
+    const creator = e.created_by ? displayName(e.created_by) : '';
+    return `<div class="evcard" onclick="openModal('event',${e.id})" ${isPersonal?'style="border-left:3px solid var(--blue)"':''}>
       <div class="evst"></div>
       <div class="evb">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div class="evtype">${e.type}</div><span class="badge ${sb(e.status)}">${e.status}</span></div>
-        <div class="evn">${e.name}</div>
-        <div style="font-size:12px;color:var(--g500)">${fd(e.date)}${e.venue?' · '+e.venue:''}</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px"><div class="evtype">${e.type||'Event'}</div><div style="display:flex;gap:6px;align-items:center">${isPersonal?'<span class="badge b-blue" style="font-size:9.5px">Personal</span>':''}<span class="badge ${sb(e.status)}">${e.status}</span></div></div>
+        <div class="evn">${esc(e.name)}</div>
+        <div style="font-size:12px;color:var(--g500)">${fd(e.date)}${e.venue?' · '+esc(e.venue):''}</div>
+        ${creator?`<div style="font-size:11px;color:var(--g500);margin-top:4px">by ${esc(creator)}</div>`:''}
         ${(e.goal||e.attendees)?`<div style="display:flex;gap:20px;margin-top:12px;padding-top:12px;border-top:1px solid var(--g150)">
           ${e.goal?`<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g400)">Goal</div><div style="font-size:14px;font-weight:700;color:var(--navy)">${fa(e.goal)}</div></div>`:''}
           ${e.attendees?`<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g400)">Guests</div><div style="font-size:14px;font-weight:700;color:var(--navy)">${e.attendees}</div></div>`:''}
-        </div>`:''}</div>
-    </div>`).join('');
+        </div>`:''}
+      </div>
+    </div>`}).join('');
 }
 
 function rGrants(){
@@ -3115,8 +3412,10 @@ save();
       if(data?.session?.user){
         currentUser = data.session.user;
         demoMode = false;
+        await determineRole(currentUser.email);
         const name = (currentUser.email || 'Staff').split('@')[0];
         enterApp(name);
+        applyRolePermissions();
         // Refresh data from Supabase so they see latest
         loadFromSupabase();
       }
