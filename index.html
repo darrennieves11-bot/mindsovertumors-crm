@@ -1097,6 +1097,28 @@ function fmtRelativeTime(iso){
   if(diff < 604800)return Math.floor(diff/86400)+'d ago';
   return new Date(iso).toLocaleDateString();
 }
+
+// Audit footer for record modals — shows who created/edited and when
+function auditFooter(rec){
+  if(!rec)return '';
+  const creator = rec.created_by || rec.createdBy;
+  const updater = rec.updated_by || rec.updatedBy;
+  const createdAt = rec.created_at || rec.created;
+  const updatedAt = rec.updated_at;
+  if(!creator && !createdAt && !updater && !updatedAt) return '';
+  let parts = [];
+  if(creator){
+    parts.push(`Created by <strong>${esc(displayName(creator))}</strong>${createdAt?' on '+new Date(createdAt).toLocaleDateString():''}`);
+  } else if(createdAt){
+    parts.push(`Created on ${new Date(createdAt).toLocaleDateString()} <span style="opacity:.7">(creator not recorded — likely added before tracking was enabled)</span>`);
+  }
+  if(updater && updater !== creator){
+    parts.push(`last edited by <strong>${esc(displayName(updater))}</strong>${updatedAt?' '+fmtRelativeTime(updatedAt):''}`);
+  } else if(updatedAt && updatedAt !== createdAt){
+    parts.push(`last updated ${fmtRelativeTime(updatedAt)}`);
+  }
+  return `<div class="ff full" style="font-size:11.5px;color:var(--g500);padding:10px 14px;background:var(--g50);border-radius:var(--r);border:1px solid var(--g150);margin-top:8px;text-transform:none;letter-spacing:0;font-weight:400">${parts.join(' · ')}</div>`;
+}
 async function renderActivityFeed(){
   const el = $('activity-feed'); if(!el) return;
   if(!supabase || demoMode){
@@ -1578,6 +1600,7 @@ function openModal(type,id=null){
       <div class="ff"><label>Tags (comma-separated)</label><input id="f-tg" value="${esc(d?.tags)}" placeholder="major, recurring, gala2026…"></div>
       <div class="ff full"><label>Address</label><input id="f-ad" value="${esc(d?.address)}"></div>
       <div class="ff full"><label>Notes</label><textarea id="f-no">${esc(d?.notes)}</textarea></div>
+      ${auditFooter(d)}
     </div>`;
     F.innerHTML=`${d?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delDonor(${d.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -1610,6 +1633,7 @@ function openModal(type,id=null){
       <div class="ff"><label>Start Date</label><input id="f-csd" type="date" value="${c?.start||''}"></div>
       <div class="ff"><label>End Date</label><input id="f-ced" type="date" value="${c?.end||''}"></div>
       <div class="ff full"><label>Description</label><textarea id="f-cd">${esc(c?.desc)}</textarea></div>
+      ${auditFooter(c)}
     </div>`;
     F.innerHTML=`${c?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delCamp(${c.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -1634,15 +1658,19 @@ function openModal(type,id=null){
       <div class="ff"><label>Status</label><select id="f-es">${['Planned','Active','Completed','Cancelled'].map(o=>`<option${(e?.status===o||(!e&&o==='Planned'))?' selected':''}>${o}</option>`).join('')}</select></div>
       <div class="ff full">
         <label>Visibility</label>
-        <div style="display:flex;flex-direction:column;gap:8px;padding:10px 14px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);font-size:13px">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input type="radio" name="evt-visibility" value="shared" ${!isPersonal?'checked':''}>
-            <span><strong>Shared</strong> <span style="color:var(--g500);font-size:11.5px">— everyone on the team sees this event</span></span>
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input type="radio" name="evt-visibility" value="personal" ${isPersonal?'checked':''}>
-            <span><strong>Personal</strong> <span style="color:var(--g500);font-size:11.5px">— only you see this (admin can also see all events)</span></span>
-          </label>
+        <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px 14px">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+            <input type="radio" name="evt-visibility" id="vis-shared" value="shared" ${!isPersonal?'checked':''} style="margin-top:3px;flex-shrink:0">
+            <label for="vis-shared" style="text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;line-height:1.4">
+              Shared <span style="color:var(--g500);font-weight:400;font-size:12px">— everyone on the team sees this event</span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            <input type="radio" name="evt-visibility" id="vis-personal" value="personal" ${isPersonal?'checked':''} style="margin-top:3px;flex-shrink:0">
+            <label for="vis-personal" style="text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;line-height:1.4">
+              Personal <span style="color:var(--g500);font-weight:400;font-size:12px">— only you see this (admin can see all events)</span>
+            </label>
+          </div>
         </div>
       </div>
       <div class="ff full"><label>Notes</label><textarea id="f-eno" rows="4">${esc(e?.desc)}</textarea></div>
@@ -1652,7 +1680,7 @@ function openModal(type,id=null){
         <input type="file" id="f-eatt" multiple style="display:none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" onchange="uploadEventAttachment()">
         <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('f-eatt').click()">+ Add File</button>
       </div>
-      ${e&&creatorEmail?`<div class="ff full" style="font-size:11.5px;color:var(--g500);padding:8px 0;border-top:1px solid var(--g150)">Created by <strong>${esc(displayName(creatorEmail))}</strong>${e.created_at?' on '+new Date(e.created_at).toLocaleDateString():''}${e.updated_by&&e.updated_by!==creatorEmail?` · last edited by <strong>${esc(displayName(e.updated_by))}</strong>`:''}${e.updated_at?' '+fmtRelativeTime(e.updated_at):''}</div>`:''}
+      ${auditFooter(e)}
     </div>`;
     F.innerHTML=`${e?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delEv(${e.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -1671,6 +1699,7 @@ function openModal(type,id=null){
       <div class="ff"><label>Role</label><select id="f-vr">${['General','Student','Event Lead','Committee Member','Medical Pro','Board Member'].map(o=>`<option${(v?.role===o||(!v&&o==='General'))?' selected':''}>${o}</option>`).join('')}</select></div>
       <div class="ff"><label>Hours Logged</label><input id="f-vh" type="number" value="${v?.hours||0}" min="0"></div>
       <div class="ff full"><label>Notes</label><textarea id="f-vn">${esc(v?.notes)}</textarea></div>
+      ${auditFooter(v)}
     </div>`;
     F.innerHTML=`${v?`<button class="btn btn-danger btn-sm" data-role-required="admin" onclick="delVol(${v.id})">Delete</button><span style="flex:1"></span>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -1716,6 +1745,7 @@ function openModal(type,id=null){
         <div class="ff full"><label>Purpose / Description</label><textarea id="f-pdesc" rows="3" placeholder="What is this project funding? What's the goal?">${esc(p?.description)}</textarea></div>
         <div class="ff full"><label>Impact &amp; Reports</label><textarea id="f-pimp" rows="5" placeholder="Add updates over time — milestones, progress reports, photos from grantee, child's story (for Wish grants), research outcomes, etc.">${esc(p?.impact)}</textarea></div>
         <div class="ff full"><label>Internal Notes</label><textarea id="f-pnotes" rows="2">${esc(p?.notes)}</textarea></div>
+        ${auditFooter(p)}
       </div>`;
     let footer='';
     if(p){
@@ -1912,7 +1942,7 @@ async function saveDonor(eid){
   const fn=vf('f-fn'),ln=vf('f-ln');
   if(!fn||!ln){alert('First and last name required.');return}
   const existing = eid?DB.donors.find(x=>x.id===eid):null;
-  const obj={id:eid||nid('donors'),fname:fn,lname:ln,email:vf('f-em'),phone:vf('f-ph'),org:vf('f-or'),type:vf('f-ty'),status:vf('f-st'),tags:vf('f-tg'),address:vf('f-ad'),notes:vf('f-no'),created:existing?.created||new Date().toISOString(),created_by:existing?.created_by||whoAmI()};
+  const obj={id:eid||nid('donors'),fname:fn,lname:ln,email:vf('f-em'),phone:vf('f-ph'),org:vf('f-or'),type:vf('f-ty'),status:vf('f-st'),tags:vf('f-tg'),address:vf('f-ad'),notes:vf('f-no'),created:existing?.created||new Date().toISOString(),created_by:existing ? existing.created_by : whoAmI()};
   addAudit(obj, !eid);
   if(eid)DB.donors[DB.donors.findIndex(x=>x.id===eid)]=obj;
   else DB.donors.push(obj);
@@ -1948,7 +1978,7 @@ async function saveDon(){
 async function saveCamp(eid){
   const name=vf('f-cn');if(!name){alert('Name required.');return}
   const existing = eid?DB.campaigns.find(x=>x.id===eid):null;
-  const obj={id:eid||nid('campaigns'),name,goal:parseFloat($('f-cg').value)||0,status:vf('f-cs'),start:vf('f-csd'),end:vf('f-ced'),desc:vf('f-cd'),created_by:existing?.created_by||whoAmI()};
+  const obj={id:eid||nid('campaigns'),name,goal:parseFloat($('f-cg').value)||0,status:vf('f-cs'),start:vf('f-csd'),end:vf('f-ced'),desc:vf('f-cd'),created_by:existing ? existing.created_by : whoAmI()};
   addAudit(obj, !eid);
   if(eid)DB.campaigns[DB.campaigns.findIndex(x=>x.id===eid)]=obj;else DB.campaigns.push(obj);
   save();await sbSave('campaigns',obj);
@@ -1961,7 +1991,7 @@ async function saveEv(eid){
   const name=vf('f-en'),date=vf('f-ed');if(!name||!date){alert('Name and date required.');return}
   const visibility = (document.querySelector('input[name="evt-visibility"]:checked')?.value) || 'shared';
   const existing = eid?DB.events.find(x=>x.id===eid):null;
-  const obj={id:eid||nid('events'),name,date,type:vf('f-ety'),venue:vf('f-ev'),goal:parseFloat($('f-eg').value)||0,attendees:parseInt($('f-ea').value)||0,status:vf('f-es'),desc:vf('f-eno'),attachments:_evtAttachBuf||[],visibility,created_by:existing?.created_by||whoAmI()};
+  const obj={id:eid||nid('events'),name,date,type:vf('f-ety'),venue:vf('f-ev'),goal:parseFloat($('f-eg').value)||0,attendees:parseInt($('f-ea').value)||0,status:vf('f-es'),desc:vf('f-eno'),attachments:_evtAttachBuf||[],visibility,created_by:existing ? existing.created_by : whoAmI()};
   addAudit(obj, !eid);
   if(eid)DB.events[DB.events.findIndex(x=>x.id===eid)]=obj;else DB.events.push(obj);
   save();await sbSave('events',obj);
@@ -1973,7 +2003,7 @@ async function delEv(id){const e=DB.events.find(x=>x.id===id);if(!confirm('Delet
 async function saveVol(eid){
   const fn=vf('f-vf'),ln=vf('f-vl');if(!fn||!ln){alert('Name required.');return}
   const existing = eid?DB.volunteers.find(x=>x.id===eid):null;
-  const obj={id:eid||nid('volunteers'),fname:fn,lname:ln,email:vf('f-ve'),phone:vf('f-vp'),role:vf('f-vr'),hours:parseFloat($('f-vh').value)||0,notes:vf('f-vn'),status:'Active',created_by:existing?.created_by||whoAmI()};
+  const obj={id:eid||nid('volunteers'),fname:fn,lname:ln,email:vf('f-ve'),phone:vf('f-vp'),role:vf('f-vr'),hours:parseFloat($('f-vh').value)||0,notes:vf('f-vn'),status:'Active',created_by:existing ? existing.created_by : whoAmI()};
   addAudit(obj, !eid);
   if(eid)DB.volunteers[DB.volunteers.findIndex(x=>x.id===eid)]=obj;else DB.volunteers.push(obj);
   save();await sbSave('volunteers',obj);
@@ -2565,7 +2595,7 @@ async function saveProject(eid){
     approved_by:existing?existing.approved_by:'',
     approved_at:existing?existing.approved_at:'',
     created_at:existing?existing.created_at:new Date().toISOString(),
-    created_by:existing?.created_by||whoAmI()
+    created_by:existing ? existing.created_by : whoAmI()
   };
   addAudit(obj, !eid);
   if(eid){DB.projects[DB.projects.findIndex(x=>x.id===eid)]=obj}
