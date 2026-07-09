@@ -1511,9 +1511,13 @@ async function sbSave(table,obj){
   return{ok:true};
 }
 async function sbDelete(table,id){
-  if(!supabase||demoMode)return;
+  if(!supabase||demoMode)return {ok:true};
   const{error} = await supabase.from(table).delete().eq('id',id);
-  if(error)console.error('Supabase delete error ('+table+'):', error.message);
+  if(error){
+    console.error('Supabase delete error ('+table+'):', error.message);
+    return {ok:false, error:error.message, code:error.code};
+  }
+  return {ok:true};
 }
 async function sbLoad(table){
   if(!supabase||demoMode)return null;
@@ -2273,12 +2277,43 @@ async function saveDonor(eid){
 }
 async function delDonor(id){
   const d=DB.donors.find(x=>x.id===id);
-  if(!confirm('Delete this contact?'))return;
-  DB.donors=DB.donors.filter(x=>x.id!==id);
-  DB.donations=DB.donations.filter(x=>x.donorId!==id);
-  save();await sbDelete('donors',id);
-  if(d)logActivity('deleted','donor',id,`${d.fname} ${d.lname}`);
-  closeModal();closePanel();renderAll();toast('Contact deleted.');
+  if(!d) return;
+  // Count linked donations
+  const linkedDons = DB.donations.filter(x=>x.donorId===id);
+  const linkedTotal = linkedDons.reduce((s,x)=>s+(x.amount||0),0);
+
+  let confirmMsg = `Delete contact "${d.fname||''} ${d.lname||''}"?`;
+  if(linkedDons.length){
+    confirmMsg += `\n\n⚠ This contact has ${linkedDons.length} donation${linkedDons.length!==1?'s':''} totaling $${linkedTotal.toLocaleString()}. Those donations will also be deleted.\n\nThis cannot be undone.`;
+  }
+  if(!confirm(confirmMsg)) return;
+
+  // Delete from Supabase FIRST, cascading donations before the donor (FK order matters)
+  if(supabase && !demoMode){
+    toast('Deleting from cloud…');
+    // 1. Delete each donation on remote first (they reference this donor)
+    for(const don of linkedDons){
+      const r = await sbDelete('donations', don.id);
+      if(!r.ok){
+        toast(`❌ Could not delete donation #${don.id}: ${r.error}. Contact NOT deleted.`, 'error');
+        return; // abort — don't touch local
+      }
+    }
+    // 2. Delete the donor on remote
+    const r = await sbDelete('donors', id);
+    if(!r.ok){
+      toast(`❌ Could not delete contact from cloud: ${r.error}. Contact NOT deleted — refresh and try again.`, 'error');
+      return; // abort — don't touch local
+    }
+  }
+
+  // Only now that cloud is clean, remove locally
+  DB.donors = DB.donors.filter(x=>x.id!==id);
+  DB.donations = DB.donations.filter(x=>x.donorId!==id);
+  save();
+  logActivity('deleted','donor',id,`${d.fname||''} ${d.lname||''}`);
+  closeModal();closePanel();renderAll();
+  toast(linkedDons.length ? `Deleted contact and ${linkedDons.length} linked donation${linkedDons.length!==1?'s':''}.` : 'Contact deleted.', 'success');
 }
 
 async function saveDon(){
@@ -2305,7 +2340,18 @@ async function saveCamp(eid){
   logActivity(eid?'updated':'created','campaign',obj.id,name);
   closeModal();renderAll();toast(eid?'Updated.':'Campaign created!','success');
 }
-async function delCamp(id){const c=DB.campaigns.find(x=>x.id===id);if(!confirm('Delete?'))return;DB.campaigns=DB.campaigns.filter(x=>x.id!==id);save();await sbDelete('campaigns',id);if(c)logActivity('deleted','campaign',id,c.name);closeModal();renderAll();toast('Deleted.')}
+async function delCamp(id){
+  const c=DB.campaigns.find(x=>x.id===id);
+  if(!c)return;
+  if(!confirm(`Delete campaign "${c.name}"? This cannot be undone.`))return;
+  if(supabase && !demoMode){
+    const r=await sbDelete('campaigns',id);
+    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Campaign NOT deleted.`,'error');return}
+  }
+  DB.campaigns=DB.campaigns.filter(x=>x.id!==id);
+  save();logActivity('deleted','campaign',id,c.name);
+  closeModal();renderAll();toast('Campaign deleted.','success');
+}
 
 async function saveEv(eid){
   const name=vf('f-en'),date=vf('f-ed');if(!name||!date){alert('Name and date required.');return}
@@ -2318,7 +2364,19 @@ async function saveEv(eid){
   logActivity(eid?'updated':'created','event',obj.id,name+(visibility==='personal'?' (personal)':''));
   closeModal();renderAll();_evtAttachBuf=[];toast(eid?'Updated.':'Event created!','success');
 }
-async function delEv(id){const e=DB.events.find(x=>x.id===id);if(!confirm('Delete?'))return;DB.events=DB.events.filter(x=>x.id!==id);save();await sbDelete('events',id);if(e)logActivity('deleted','event',id,e.name);closeModal();renderAll();toast('Deleted.')}
+async function delEv(id){
+  const e=DB.events.find(x=>x.id===id);
+  if(!e)return;
+  if(!confirm(`Delete event "${e.name}"? Any linked budgets will also be deleted.`))return;
+  if(supabase && !demoMode){
+    const r=await sbDelete('events',id);
+    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Event NOT deleted.`,'error');return}
+  }
+  DB.events=DB.events.filter(x=>x.id!==id);
+  DB.budgets=DB.budgets.filter(x=>x.event_id!==id); // cascade locally (Supabase does it via FK)
+  save();logActivity('deleted','event',id,e.name);
+  closeModal();renderAll();toast('Event deleted.','success');
+}
 
 async function saveVol(eid){
   const fn=vf('f-vf'),ln=vf('f-vl');if(!fn||!ln){alert('Name required.');return}
@@ -2330,7 +2388,18 @@ async function saveVol(eid){
   logActivity(eid?'updated':'created','volunteer',obj.id,`${fn} ${ln}`);
   closeModal();renderAll();toast(eid?'Updated.':'Volunteer added!','success');
 }
-async function delVol(id){const v=DB.volunteers.find(x=>x.id===id);if(!confirm('Delete?'))return;DB.volunteers=DB.volunteers.filter(x=>x.id!==id);save();await sbDelete('volunteers',id);if(v)logActivity('deleted','volunteer',id,`${v.fname} ${v.lname}`);closeModal();renderAll();toast('Deleted.')}
+async function delVol(id){
+  const v=DB.volunteers.find(x=>x.id===id);
+  if(!v)return;
+  if(!confirm(`Delete volunteer "${v.fname} ${v.lname}"?`))return;
+  if(supabase && !demoMode){
+    const r=await sbDelete('volunteers',id);
+    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Volunteer NOT deleted.`,'error');return}
+  }
+  DB.volunteers=DB.volunteers.filter(x=>x.id!==id);
+  save();logActivity('deleted','volunteer',id,`${v.fname} ${v.lname}`);
+  closeModal();renderAll();toast('Volunteer deleted.','success');
+}
 
 async function saveGrant(){
   const name=vf('f-gn');if(!name){alert('Name required.');return}
@@ -2853,6 +2922,55 @@ function showBucketSetupHelp(bucketName){
   $('modal-overlay').classList.add('active');
 }
 
+function showStorageRlsHelp(bucketName){
+  const sbUrl = DB.settings.sbUrl || '';
+  const projectRef = sbUrl.replace(/^https?:\/\//,'').replace(/\.supabase\.co.*$/,'');
+  const sqlEditorUrl = projectRef ? `https://supabase.com/dashboard/project/${projectRef}/sql/new` : 'https://supabase.com/dashboard';
+
+  const sql = `-- Allow authenticated users to upload/read/delete files in both buckets
+-- Copy ALL of this and paste into Supabase SQL Editor, then click "Run"
+
+create policy "auth_all_event_attachments" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'event-attachments')
+  with check (bucket_id = 'event-attachments');
+
+create policy "auth_all_patient_attachments" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'patient-attachments')
+  with check (bucket_id = 'patient-attachments');`;
+
+  $('modal-box').className='modal';
+  $('mtitle').innerHTML = `⚠ Storage Permission Missing`;
+  $('mbody').innerHTML = `
+    <div style="background:#fff8e6;border:1px solid #f0d070;border-radius:var(--r);padding:14px 16px;margin-bottom:18px;font-size:13px;color:#7a5a00;line-height:1.6">
+      Your bucket <code style="background:#fff;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:12px">${bucketName}</code> exists, but Supabase's Row-Level Security is blocking uploads. When you create a bucket, Supabase doesn't automatically grant access to it — you need to add permission policies. One-time SQL fix, takes 30 seconds.
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:12px">Steps</div>
+
+    <ol style="padding-left:20px;font-size:13.5px;line-height:1.75;color:var(--navy);margin-bottom:18px">
+      <li style="margin-bottom:8px">Click the button below to open Supabase SQL Editor in a new tab</li>
+      <li style="margin-bottom:8px">Copy the SQL from the box below</li>
+      <li style="margin-bottom:8px">Paste into the SQL Editor and click <strong>Run</strong></li>
+      <li>Come back here and re-upload — it will work</li>
+    </ol>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:8px">SQL to run</div>
+    <textarea readonly onclick="this.select()" style="width:100%;height:220px;font-family:'Menlo','Monaco',monospace;font-size:11.5px;padding:14px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);color:var(--navy);line-height:1.5;resize:vertical">${sql}</textarea>
+
+    <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px 14px;font-size:12px;color:var(--g600);line-height:1.6;margin-top:14px">
+      <strong style="color:var(--navy)">Why this SQL:</strong> It creates two policies allowing any signed-in user to upload, read, update, and delete files in the two attachment buckets. The <code style="background:#fff;padding:1px 5px;border-radius:2px;font-size:11px">to authenticated</code> clause means anonymous visitors are blocked; only your team's signed-in accounts have access.
+    </div>
+  `;
+  $('mfoot').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Close</button>
+    <button class="btn btn-outline" onclick="navigator.clipboard.writeText(\`${sql.replace(/`/g,'\\`').replace(/\$/g,'\\$')}\`);toast('SQL copied to clipboard','success')">Copy SQL</button>
+    <a href="${sqlEditorUrl}" target="_blank" class="btn btn-primary" style="text-decoration:none">Open Supabase SQL Editor →</a>
+  `;
+  $('modal-overlay').classList.add('active');
+}
+
 async function uploadEventAttachment(){
   const input = $('f-eatt'); if(!input||!input.files||!input.files.length) return;
   if(!supabase || demoMode){
@@ -2869,8 +2987,11 @@ async function uploadEventAttachment(){
     const{error: uploadError} = await supabase.storage.from('event-attachments').upload(path, file, {upsert:false, contentType:file.type});
     if(uploadError){
       console.error('Upload error:', uploadError);
-      if((uploadError.message||'').toLowerCase().includes('bucket') || (uploadError.statusCode||uploadError.status)==404){
+      const msg = (uploadError.message||'').toLowerCase();
+      if(msg.includes('bucket') && msg.includes('not') || (uploadError.statusCode||uploadError.status)==404){
         showBucketSetupHelp('event-attachments');
+      } else if(msg.includes('row-level security') || msg.includes('rls') || msg.includes('policy')){
+        showStorageRlsHelp('event-attachments');
       } else {
         toast('Upload failed: '+uploadError.message,'error');
       }
@@ -2968,10 +3089,14 @@ async function saveProject(eid){
 
 async function delProject(id){
   const p=DB.projects.find(x=>x.id===id);
-  if(!confirm('Delete this project? This cannot be undone.'))return;
+  if(!p)return;
+  if(!confirm(`Delete project "${p.name}"? This cannot be undone.`))return;
+  if(supabase && !demoMode){
+    const r=await sbDelete('projects',id);
+    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Project NOT deleted.`,'error');return}
+  }
   DB.projects=DB.projects.filter(x=>x.id!==id);
-  save();await sbDelete('projects',id);
-  if(p)logActivity('deleted','project',id,p.name);
+  save();logActivity('deleted','project',id,p.name);
   closeModal();renderAll();
   toast('Project deleted.','success');
 }
@@ -3059,10 +3184,14 @@ async function saveBudget(eid){
 
 async function delBudget(id){
   const b = DB.budgets.find(x=>x.id===id);
-  if(!confirm('Delete this budget? All line items will be permanently lost.'))return;
+  if(!b)return;
+  if(!confirm(`Delete budget "${b.name}"? All line items will be permanently lost.`))return;
+  if(supabase && !demoMode){
+    const r=await sbDelete('budgets',id);
+    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Budget NOT deleted.`,'error');return}
+  }
   DB.budgets = DB.budgets.filter(x=>x.id!==id);
-  save();await sbDelete('budgets', id);
-  if(b) logActivity('deleted','budget',id,b.name);
+  save();logActivity('deleted','budget',id,b.name);
   closeModal();renderAll();
   toast('Budget deleted.','success');
 }
@@ -3526,9 +3655,12 @@ async function delPatient(id){
   if(!p) return;
   if(!confirm(`Delete patient record for ${p.first_name} ${p.last_name}?\n\nThis will permanently remove all case history, notes, and attachments. This action cannot be undone.`))return;
   if(!confirm('Are you absolutely sure? Type-check: this is a permanent deletion of a patient case file.'))return;
+  if(supabase && !demoMode){
+    const r=await sbDelete('patients',id);
+    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Patient record NOT deleted.`,'error');return}
+  }
   DB.patients = DB.patients.filter(x=>x.id!==id);
-  save();await sbDelete('patients', id);
-  logActivity('deleted','patient',id,`${p.first_name} ${p.last_name}`);
+  save();logActivity('deleted','patient',id,`${p.first_name} ${p.last_name}`);
   closeModal();renderAll();
   toast('Patient record deleted.','success');
 }
@@ -3553,8 +3685,11 @@ async function uploadPatientAttachment(patientId){
       const { data, error } = await supa.storage.from(bucket).upload(path, file, {upsert:false});
       if(error){
         console.error('Upload error:', error);
-        if((error.message||'').toLowerCase().includes('bucket') || (error.statusCode||error.status)==404){
+        const msg = (error.message||'').toLowerCase();
+        if(msg.includes('bucket') && msg.includes('not') || (error.statusCode||error.status)==404){
           showBucketSetupHelp('patient-attachments');
+        } else if(msg.includes('row-level security') || msg.includes('rls') || msg.includes('policy')){
+          showStorageRlsHelp('patient-attachments');
         } else {
           toast(`Upload failed: ${error.message}`,'error');
         }
