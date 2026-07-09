@@ -1713,20 +1713,16 @@ function openModal(type,id=null){
       <div class="ff"><label>Expected Attendees</label><input id="f-ea" type="number" value="${e?.attendees||''}"></div>
       <div class="ff"><label>Status</label><select id="f-es">${['Planned','Active','Completed','Cancelled'].map(o=>`<option${(e?.status===o||(!e&&o==='Planned'))?' selected':''}>${o}</option>`).join('')}</select></div>
       <div class="ff full">
-        <label>Visibility</label>
-        <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px 14px">
-          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
-            <input type="radio" name="evt-visibility" id="vis-shared" value="shared" ${!isPersonal?'checked':''} style="margin-top:3px;flex-shrink:0">
-            <label for="vis-shared" class="opt-label">
-              Shared <span class="opt-sub">— everyone on the team sees this event</span>
-            </label>
-          </div>
-          <div style="display:flex;align-items:flex-start;gap:10px">
-            <input type="radio" name="evt-visibility" id="vis-personal" value="personal" ${isPersonal?'checked':''} style="margin-top:3px;flex-shrink:0">
-            <label for="vis-personal" class="opt-label">
-              Personal <span class="opt-sub">— only you see this (admin can see all events)</span>
-            </label>
-          </div>
+        <label style="display:block">Visibility</label>
+        <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+          <label class="opt-label" style="display:flex;align-items:flex-start;gap:10px;width:100%">
+            <input type="radio" name="evt-visibility" value="shared" ${!isPersonal?'checked':''} style="margin-top:3px;flex-shrink:0">
+            <span style="flex:1;min-width:0">Shared <span class="opt-sub">— everyone on the team sees this event</span></span>
+          </label>
+          <label class="opt-label" style="display:flex;align-items:flex-start;gap:10px;width:100%">
+            <input type="radio" name="evt-visibility" value="personal" ${isPersonal?'checked':''} style="margin-top:3px;flex-shrink:0">
+            <span style="flex:1;min-width:0">Personal <span class="opt-sub">— only you see this (admin can see all events)</span></span>
+          </label>
         </div>
       </div>
       <div class="ff full"><label>Notes</label><textarea id="f-eno" rows="4">${esc(e?.desc)}</textarea></div>
@@ -2818,6 +2814,45 @@ function fileIcon(type){
   return '📄';
 }
 
+// ════════════════════════════════════════════════════
+// Storage bucket missing — helpful setup dialog
+// ════════════════════════════════════════════════════
+function showBucketSetupHelp(bucketName){
+  const sbUrl = DB.settings.sbUrl || '';
+  const projectRef = sbUrl.replace(/^https?:\/\//,'').replace(/\.supabase\.co.*$/,'');
+  const storageUrl = projectRef ? `https://supabase.com/dashboard/project/${projectRef}/storage/buckets` : 'https://supabase.com/dashboard';
+  const isPatient = bucketName === 'patient-attachments';
+  const publicRec = isPatient ? 'Private (recommended for PHI)' : 'Public';
+
+  $('modal-box').className='modal';
+  $('mtitle').innerHTML = `⚠ Storage Bucket Missing`;
+  $('mbody').innerHTML = `
+    <div style="background:#fff8e6;border:1px solid #f0d070;border-radius:var(--r);padding:14px 16px;margin-bottom:18px;font-size:13px;color:#7a5a00;line-height:1.6">
+      Your file upload failed because the storage bucket <code style="background:#fff;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:12px">${bucketName}</code> doesn't exist yet in your Supabase project. This is a one-time setup step — takes about 30 seconds.
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:12px">How to create it</div>
+
+    <ol style="padding-left:20px;font-size:13.5px;line-height:1.75;color:var(--navy);margin-bottom:20px">
+      <li style="margin-bottom:10px">Click the button below to open your Supabase Storage page in a new tab</li>
+      <li style="margin-bottom:10px">Click the green <strong>"New bucket"</strong> button</li>
+      <li style="margin-bottom:10px">Name it exactly: <code style="background:var(--g100);padding:3px 8px;border-radius:3px;font-family:monospace;font-size:12.5px;color:var(--navy);font-weight:700">${bucketName}</code></li>
+      <li style="margin-bottom:10px">Set it to <strong>${publicRec}</strong>${isPatient ? ' — because patient records are HIPAA-protected PHI' : ' — event files can be viewed by anyone with the URL'}</li>
+      <li style="margin-bottom:10px">Click <strong>"Create bucket"</strong></li>
+      <li>Come back here and re-upload your file</li>
+    </ol>
+
+    <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px 14px;font-size:12px;color:var(--g600);line-height:1.6">
+      <strong style="color:var(--navy)">Note:</strong> ${projectRef ? 'The link below opens your specific project.' : 'Sign in to Supabase and navigate to your project → Storage.'} Both <code style="background:#fff;padding:1px 5px;border-radius:2px;font-size:11px">event-attachments</code> and <code style="background:#fff;padding:1px 5px;border-radius:2px;font-size:11px">patient-attachments</code> buckets are needed for the CRM's file upload features to work.
+    </div>
+  `;
+  $('mfoot').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Close</button>
+    <a href="${storageUrl}" target="_blank" class="btn btn-primary" style="text-decoration:none">Open Supabase Storage →</a>
+  `;
+  $('modal-overlay').classList.add('active');
+}
+
 async function uploadEventAttachment(){
   const input = $('f-eatt'); if(!input||!input.files||!input.files.length) return;
   if(!supabase || demoMode){
@@ -2835,7 +2870,7 @@ async function uploadEventAttachment(){
     if(uploadError){
       console.error('Upload error:', uploadError);
       if((uploadError.message||'').toLowerCase().includes('bucket') || (uploadError.statusCode||uploadError.status)==404){
-        toast('Storage bucket "event-attachments" not found. See Settings for setup instructions.','error');
+        showBucketSetupHelp('event-attachments');
       } else {
         toast('Upload failed: '+uploadError.message,'error');
       }
@@ -3518,7 +3553,11 @@ async function uploadPatientAttachment(patientId){
       const { data, error } = await supa.storage.from(bucket).upload(path, file, {upsert:false});
       if(error){
         console.error('Upload error:', error);
-        toast(`Upload failed: ${error.message}`,'error');
+        if((error.message||'').toLowerCase().includes('bucket') || (error.statusCode||error.status)==404){
+          showBucketSetupHelp('patient-attachments');
+        } else {
+          toast(`Upload failed: ${error.message}`,'error');
+        }
         continue;
       }
       const { data: urlData } = supa.storage.from(bucket).getPublicUrl(path);
