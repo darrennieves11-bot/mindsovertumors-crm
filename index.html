@@ -1239,6 +1239,7 @@ async function initSupabase(url,key){
 const DB={
   donors:[],donations:[],campaigns:[],events:[],volunteers:[],grants:[],projects:[],budgets:[],patients:[],schedule:[],
   _n:{donors:1,donations:1,campaigns:1,events:1,volunteers:1,grants:1,projects:1,budgets:1,patients:1,schedule:1},
+  _deleted:{},  // Tombstones: { donors: [{id, ts}, ...], donations: [...], ... } — prevents zombie records
   oc:{key:'',org:'',connected:false,lastSync:'',freq:'24'},
   social:{fb:'',ig:'',li:'',posts:[]},
   settings:{orgname:'Minds Over Tumors',email:'info@mindsovertumors.org',ein:'',title:'President & CEO',name:'',sbUrl:'',sbKey:'',raisedResetDate:''},
@@ -1510,19 +1511,56 @@ async function sbSave(table,obj){
   }
   return{ok:true};
 }
+// ════════════════════════════════════════════════════
+// TOMBSTONE TRACKING — prevents zombie records after delete
+// ════════════════════════════════════════════════════
+function markDeleted(table, id){
+  if(!DB._deleted) DB._deleted = {};
+  if(!DB._deleted[table]) DB._deleted[table] = [];
+  // Avoid duplicates
+  if(!DB._deleted[table].some(t => t.id === id)){
+    DB._deleted[table].push({id, ts: Date.now()});
+  }
+  // Prune tombstones older than 90 days to prevent unbounded growth
+  const cutoff = Date.now() - 90*24*60*60*1000;
+  DB._deleted[table] = DB._deleted[table].filter(t => t.ts > cutoff);
+  save();
+  console.log(`[tombstone] Marked ${table} #${id} as deleted`);
+}
+function isTombstoned(table, id){
+  return !!(DB._deleted?.[table]?.some(t => t.id === id));
+}
+
 async function sbDelete(table,id){
-  if(!supabase||demoMode)return {ok:true};
+  console.log(`[sbDelete] Attempting to delete ${table} #${id}`);
+  if(!supabase||demoMode){
+    console.log(`[sbDelete] Skipped — supabase=${!!supabase}, demoMode=${demoMode}`);
+    markDeleted(table, id); // still tombstone locally so it never resurrects
+    return {ok:true};
+  }
   // Chain .select() so we can verify how many rows actually got deleted.
   // Without this, RLS-blocked deletes silently return success with 0 rows.
   const{data, error} = await supabase.from(table).delete().eq('id',id).select();
+  console.log(`[sbDelete] Response for ${table} #${id}:`, {data, error, rowsAffected: data?.length||0});
   if(error){
     console.error('Supabase delete error ('+table+'):', error.message);
     return {ok:false, error:error.message, code:error.code};
   }
   if(!data || data.length === 0){
-    console.error('Supabase delete blocked — 0 rows affected for', table, id, '(likely RLS policy or already gone)');
-    return {ok:false, error:'Delete blocked by permissions (0 rows affected). Your Supabase Row-Level Security policy is missing a DELETE rule for this table.', code:'RLS_BLOCK', rlsIssue:true, table};
+    console.error(`Supabase delete returned 0 rows for ${table} #${id} — RLS likely blocked it, OR record doesn't exist on server`);
+    // Verify by trying to fetch it — if it exists, it's RLS; if not, it's already gone
+    const{data:checkData} = await supabase.from(table).select('id').eq('id',id).limit(1);
+    if(checkData && checkData.length > 0){
+      console.error(`Record still exists in ${table} — confirmed RLS block`);
+      return {ok:false, error:`Delete blocked by permissions (record still exists, 0 rows affected). Your Supabase Row-Level Security policy is missing a DELETE rule for the ${table} table.`, code:'RLS_BLOCK', rlsIssue:true, table};
+    } else {
+      console.log(`Record not found in ${table} — was already deleted or never existed on server`);
+      markDeleted(table, id);
+      return {ok:true, note:'already-gone'};
+    }
   }
+  console.log(`[sbDelete] Success — deleted ${data.length} row(s) from ${table}`);
+  markDeleted(table, id);
   return {ok:true};
 }
 async function sbLoad(table){
@@ -1538,12 +1576,39 @@ async function loadFromSupabase(){
   const tables=['donors','donations','campaigns','events','volunteers','grants','projects','budgets','patients'];
   let pushedCount=0;
   let pushErrors=[];
+  let zombiesKilled=0;
   for(const t of tables){
     const remoteData=await sbLoad(t);
     if(remoteData===null)continue; // load failed — leave local data alone
+
+    // ZOMBIE KILLER: Purge any local records that were previously deleted (tombstoned).
+    // This handles cases where stale localStorage had a "deleted" record.
+    const tombstoneIds = new Set((DB._deleted?.[t]||[]).map(x => x.id));
+    if(tombstoneIds.size > 0){
+      const beforeCount = (DB[t]||[]).length;
+      DB[t] = (DB[t]||[]).filter(item => !tombstoneIds.has(item.id));
+      const purged = beforeCount - DB[t].length;
+      if(purged > 0){
+        console.log(`[sync] Purged ${purged} zombie ${t} from local storage`);
+        zombiesKilled += purged;
+      }
+      // Also: if remote somehow has a tombstoned record (e.g. it was re-created elsewhere),
+      // re-delete it from remote to enforce our local deletion intent
+      const remoteZombies = remoteData.filter(r => tombstoneIds.has(r.id));
+      for(const rz of remoteZombies){
+        console.warn(`[sync] Remote has tombstoned ${t} #${rz.id} — re-deleting from cloud`);
+        await supabase.from(t).delete().eq('id', rz.id);
+      }
+      // Remove those zombies from what we consider "remote" going forward
+      const rzIds = new Set(remoteZombies.map(r => r.id));
+      const cleanedRemote = remoteData.filter(r => !rzIds.has(r.id));
+      remoteData.length = 0;
+      remoteData.push(...cleanedRemote);
+    }
+
     // Find local items NOT in remote (saves that never made it to cloud)
     const remoteIds=new Set(remoteData.map(r=>r.id));
-    const localOnly=(DB[t]||[]).filter(item=>item && item.id!=null && !remoteIds.has(item.id));
+    const localOnly=(DB[t]||[]).filter(item=>item && item.id!=null && !remoteIds.has(item.id) && !tombstoneIds.has(item.id));
     if(localOnly.length>0){
       console.warn(`Found ${localOnly.length} local-only ${t} not in Supabase — pushing up`);
       for(const item of localOnly){
@@ -1563,6 +1628,9 @@ async function loadFromSupabase(){
         DB._n[t] = maxId + 1;
       }
     }
+  }
+  if(zombiesKilled > 0){
+    console.log(`[sync] Killed ${zombiesKilled} zombie record(s) total this sync`);
   }
   save();
   renderAll();
