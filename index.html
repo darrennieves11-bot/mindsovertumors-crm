@@ -1512,10 +1512,16 @@ async function sbSave(table,obj){
 }
 async function sbDelete(table,id){
   if(!supabase||demoMode)return {ok:true};
-  const{error} = await supabase.from(table).delete().eq('id',id);
+  // Chain .select() so we can verify how many rows actually got deleted.
+  // Without this, RLS-blocked deletes silently return success with 0 rows.
+  const{data, error} = await supabase.from(table).delete().eq('id',id).select();
   if(error){
     console.error('Supabase delete error ('+table+'):', error.message);
     return {ok:false, error:error.message, code:error.code};
+  }
+  if(!data || data.length === 0){
+    console.error('Supabase delete blocked — 0 rows affected for', table, id, '(likely RLS policy or already gone)');
+    return {ok:false, error:'Delete blocked by permissions (0 rows affected). Your Supabase Row-Level Security policy is missing a DELETE rule for this table.', code:'RLS_BLOCK', rlsIssue:true, table};
   }
   return {ok:true};
 }
@@ -2295,6 +2301,7 @@ async function delDonor(id){
     for(const don of linkedDons){
       const r = await sbDelete('donations', don.id);
       if(!r.ok){
+        if(r.rlsIssue){showTableRlsHelp(r.table||'donations');return}
         toast(`❌ Could not delete donation #${don.id}: ${r.error}. Contact NOT deleted.`, 'error');
         return; // abort — don't touch local
       }
@@ -2302,6 +2309,7 @@ async function delDonor(id){
     // 2. Delete the donor on remote
     const r = await sbDelete('donors', id);
     if(!r.ok){
+      if(r.rlsIssue){showTableRlsHelp(r.table||'donors');return}
       toast(`❌ Could not delete contact from cloud: ${r.error}. Contact NOT deleted — refresh and try again.`, 'error');
       return; // abort — don't touch local
     }
@@ -2346,7 +2354,7 @@ async function delCamp(id){
   if(!confirm(`Delete campaign "${c.name}"? This cannot be undone.`))return;
   if(supabase && !demoMode){
     const r=await sbDelete('campaigns',id);
-    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Campaign NOT deleted.`,'error');return}
+    if(!r.ok){if(r.rlsIssue){showTableRlsHelp('campaigns');return}toast(`❌ Cloud delete failed: ${r.error}. Campaign NOT deleted.`,'error');return}
   }
   DB.campaigns=DB.campaigns.filter(x=>x.id!==id);
   save();logActivity('deleted','campaign',id,c.name);
@@ -2370,7 +2378,7 @@ async function delEv(id){
   if(!confirm(`Delete event "${e.name}"? Any linked budgets will also be deleted.`))return;
   if(supabase && !demoMode){
     const r=await sbDelete('events',id);
-    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Event NOT deleted.`,'error');return}
+    if(!r.ok){if(r.rlsIssue){showTableRlsHelp('events');return}toast(`❌ Cloud delete failed: ${r.error}. Event NOT deleted.`,'error');return}
   }
   DB.events=DB.events.filter(x=>x.id!==id);
   DB.budgets=DB.budgets.filter(x=>x.event_id!==id); // cascade locally (Supabase does it via FK)
@@ -2394,7 +2402,7 @@ async function delVol(id){
   if(!confirm(`Delete volunteer "${v.fname} ${v.lname}"?`))return;
   if(supabase && !demoMode){
     const r=await sbDelete('volunteers',id);
-    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Volunteer NOT deleted.`,'error');return}
+    if(!r.ok){if(r.rlsIssue){showTableRlsHelp('volunteers');return}toast(`❌ Cloud delete failed: ${r.error}. Volunteer NOT deleted.`,'error');return}
   }
   DB.volunteers=DB.volunteers.filter(x=>x.id!==id);
   save();logActivity('deleted','volunteer',id,`${v.fname} ${v.lname}`);
@@ -2922,6 +2930,60 @@ function showBucketSetupHelp(bucketName){
   $('modal-overlay').classList.add('active');
 }
 
+function showTableRlsHelp(tableName){
+  const sbUrl = DB.settings.sbUrl || '';
+  const projectRef = sbUrl.replace(/^https?:\/\//,'').replace(/\.supabase\.co.*$/,'');
+  const sqlEditorUrl = projectRef ? `https://supabase.com/dashboard/project/${projectRef}/sql/new` : 'https://supabase.com/dashboard';
+
+  // Give SQL that fixes ALL tables in one go so this never comes back
+  const sql = `-- Grants authenticated users full access (SELECT/INSERT/UPDATE/DELETE) to all CRM tables.
+-- Existing partial policies are dropped and replaced with a single "for all" policy per table.
+
+do $$
+declare
+  t text;
+  tables text[] := array['donors','donations','campaigns','events','volunteers','grants','projects','budgets','patients','user_roles','activity_log'];
+begin
+  foreach t in array tables loop
+    -- Drop any old policies for this table so we start clean
+    execute format('drop policy if exists "auth_all_%s" on %I', t, t);
+    execute format('drop policy if exists "auth_full_%s" on %I', t, t);
+    -- Create the definitive full-access policy for authenticated users
+    execute format('create policy "auth_all_%s" on %I for all to authenticated using (true) with check (true)', t, t);
+  end loop;
+end $$;`;
+
+  $('modal-box').className='modal';
+  $('mtitle').innerHTML = `⚠ Delete Blocked by Row-Level Security`;
+  $('mbody').innerHTML = `
+    <div style="background:#fff8e6;border:1px solid #f0d070;border-radius:var(--r);padding:14px 16px;margin-bottom:18px;font-size:13px;color:#7a5a00;line-height:1.6">
+      Your Supabase RLS policy on the <code style="background:#fff;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:12px">${tableName}</code> table doesn't include DELETE permission for authenticated users, so Supabase silently blocks deletes while returning "success" — which is why records reappear after refresh. One-time SQL fix.
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:12px">Steps</div>
+
+    <ol style="padding-left:20px;font-size:13.5px;line-height:1.75;color:var(--navy);margin-bottom:18px">
+      <li style="margin-bottom:8px">Click "Open Supabase SQL Editor" below</li>
+      <li style="margin-bottom:8px">Paste the SQL from the box (it fixes <strong>all your tables at once</strong>, not just this one)</li>
+      <li style="margin-bottom:8px">Click <strong>Run</strong> — takes 1 second</li>
+      <li>Come back and delete again — it'll stick this time</li>
+    </ol>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:8px">SQL to run</div>
+    <textarea readonly onclick="this.select()" style="width:100%;height:220px;font-family:'Menlo','Monaco',monospace;font-size:11.5px;padding:14px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);color:var(--navy);line-height:1.5;resize:vertical">${sql}</textarea>
+
+    <div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:12px 14px;font-size:12px;color:var(--g600);line-height:1.6;margin-top:14px">
+      <strong style="color:var(--navy)">Why this SQL:</strong> It replaces any existing RLS policy on each table with a single <code style="background:#fff;padding:1px 5px;border-radius:2px;font-size:11px">for all to authenticated</code> policy — meaning signed-in staff can read, add, edit, and delete records freely. Anonymous visitors remain blocked. This is the standard nonprofit-team pattern.
+    </div>
+  `;
+  $('mfoot').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Close</button>
+    <button class="btn btn-outline" onclick="navigator.clipboard.writeText(\`${sql.replace(/`/g,'\\`').replace(/\$/g,'\\$')}\`);toast('SQL copied to clipboard','success')">Copy SQL</button>
+    <a href="${sqlEditorUrl}" target="_blank" class="btn btn-primary" style="text-decoration:none">Open Supabase SQL Editor →</a>
+  `;
+  $('modal-overlay').classList.add('active');
+}
+
 function showStorageRlsHelp(bucketName){
   const sbUrl = DB.settings.sbUrl || '';
   const projectRef = sbUrl.replace(/^https?:\/\//,'').replace(/\.supabase\.co.*$/,'');
@@ -3093,7 +3155,7 @@ async function delProject(id){
   if(!confirm(`Delete project "${p.name}"? This cannot be undone.`))return;
   if(supabase && !demoMode){
     const r=await sbDelete('projects',id);
-    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Project NOT deleted.`,'error');return}
+    if(!r.ok){if(r.rlsIssue){showTableRlsHelp('projects');return}toast(`❌ Cloud delete failed: ${r.error}. Project NOT deleted.`,'error');return}
   }
   DB.projects=DB.projects.filter(x=>x.id!==id);
   save();logActivity('deleted','project',id,p.name);
@@ -3188,7 +3250,7 @@ async function delBudget(id){
   if(!confirm(`Delete budget "${b.name}"? All line items will be permanently lost.`))return;
   if(supabase && !demoMode){
     const r=await sbDelete('budgets',id);
-    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Budget NOT deleted.`,'error');return}
+    if(!r.ok){if(r.rlsIssue){showTableRlsHelp('budgets');return}toast(`❌ Cloud delete failed: ${r.error}. Budget NOT deleted.`,'error');return}
   }
   DB.budgets = DB.budgets.filter(x=>x.id!==id);
   save();logActivity('deleted','budget',id,b.name);
@@ -3657,7 +3719,7 @@ async function delPatient(id){
   if(!confirm('Are you absolutely sure? Type-check: this is a permanent deletion of a patient case file.'))return;
   if(supabase && !demoMode){
     const r=await sbDelete('patients',id);
-    if(!r.ok){toast(`❌ Cloud delete failed: ${r.error}. Patient record NOT deleted.`,'error');return}
+    if(!r.ok){if(r.rlsIssue){showTableRlsHelp('patients');return}toast(`❌ Cloud delete failed: ${r.error}. Patient record NOT deleted.`,'error');return}
   }
   DB.patients = DB.patients.filter(x=>x.id!==id);
   save();logActivity('deleted','patient',id,`${p.first_name} ${p.last_name}`);
