@@ -1597,7 +1597,26 @@ async function loadFromSupabase(){
       const remoteZombies = remoteData.filter(r => tombstoneIds.has(r.id));
       for(const rz of remoteZombies){
         console.warn(`[sync] Remote has tombstoned ${t} #${rz.id} — re-deleting from cloud`);
-        await supabase.from(t).delete().eq('id', rz.id);
+        // For tables with FK references, cascade at the server level first
+        if(t === 'donors'){
+          const {error:donsErr, data:donsData} = await supabase.from('donations').delete().eq('donor_id', rz.id).select();
+          if(donsErr){
+            console.error(`[sync] Failed to cascade-delete donations for donor #${rz.id}:`, donsErr.message);
+          } else if(donsData && donsData.length){
+            console.log(`[sync] Cascade-deleted ${donsData.length} donation(s) for donor #${rz.id}`);
+            for(const d of donsData) markDeleted('donations', d.id);
+          }
+        }
+        if(t === 'events'){
+          // budgets FK-reference events with ON DELETE CASCADE, but just in case
+          await supabase.from('budgets').delete().eq('event_id', rz.id);
+        }
+        const {error:zErr} = await supabase.from(t).delete().eq('id', rz.id);
+        if(zErr){
+          console.error(`[sync] Zombie re-delete failed for ${t} #${rz.id}:`, zErr.message);
+        } else {
+          console.log(`[sync] ✓ Zombie ${t} #${rz.id} re-deleted from cloud`);
+        }
       }
       // Remove those zombies from what we consider "remote" going forward
       const rzIds = new Set(remoteZombies.map(r => r.id));
