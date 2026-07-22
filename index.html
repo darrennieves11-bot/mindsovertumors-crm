@@ -3130,8 +3130,9 @@ function showStorageRlsHelp(bucketName){
   const projectRef = sbUrl.replace(/^https?:\/\//,'').replace(/\.supabase\.co.*$/,'');
   const sqlEditorUrl = projectRef ? `https://supabase.com/dashboard/project/${projectRef}/sql/new` : 'https://supabase.com/dashboard';
 
-  const sql = `-- Allow authenticated users to upload/read/delete files in both buckets
--- Copy ALL of this and paste into Supabase SQL Editor, then click "Run"
+  const sql = `-- Allow authenticated users to upload/read/delete files in all attachment buckets.
+-- Copy ALL of this SQL, then paste into Supabase SQL Editor and click "Run".
+-- Safe to run multiple times: policies for other buckets that already exist will error, but the missing one will be created.
 
 create policy "auth_all_event_attachments" on storage.objects
   for all to authenticated
@@ -3141,7 +3142,12 @@ create policy "auth_all_event_attachments" on storage.objects
 create policy "auth_all_patient_attachments" on storage.objects
   for all to authenticated
   using (bucket_id = 'patient-attachments')
-  with check (bucket_id = 'patient-attachments');`;
+  with check (bucket_id = 'patient-attachments');
+
+create policy "auth_all_project_attachments" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'project-attachments')
+  with check (bucket_id = 'project-attachments');`;
 
   $('modal-box').className='modal';
   $('mtitle').innerHTML = `⚠ Storage Permission Missing`;
@@ -3965,7 +3971,7 @@ async function uploadPatientAttachment(patientId){
   const files = input.files;
   if(!files || !files.length) return;
   const bucket = 'patient-attachments';
-  if(!supa){toast('Cloud storage not connected. File not uploaded.','error');return}
+  if(!supabase){toast('Cloud storage not connected. File not uploaded.','error');return}
 
   for(const file of files){
     if(file.size > 25*1024*1024){
@@ -3977,7 +3983,7 @@ async function uploadPatientAttachment(patientId){
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
       const path = `${patientId||'new'}/${timestamp}_${safeName}`;
       toast(`Uploading ${file.name}...`,'info');
-      const { data, error } = await supa.storage.from(bucket).upload(path, file, {upsert:false});
+      const { data, error } = await supabase.storage.from(bucket).upload(path, file, {upsert:false});
       if(error){
         console.error('Upload error:', error);
         const msg = (error.message||'').toLowerCase();
@@ -3990,7 +3996,7 @@ async function uploadPatientAttachment(patientId){
         }
         continue;
       }
-      const { data: urlData } = supa.storage.from(bucket).getPublicUrl(path);
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       _ptAttachBuf.push({
         name: file.name,
         path,
@@ -4013,9 +4019,9 @@ async function uploadPatientAttachment(patientId){
 async function removePatientAttachment(idx){
   if(!confirm('Remove this attachment? The file will also be deleted from cloud storage.')) return;
   const att = _ptAttachBuf[idx];
-  if(att && att.path && supa){
+  if(att && att.path && supabase){
     try{
-      await supa.storage.from('patient-attachments').remove([att.path]);
+      await supabase.storage.from('patient-attachments').remove([att.path]);
     } catch(err){
       console.warn('Could not delete from storage:', err);
     }
