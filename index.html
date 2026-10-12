@@ -4030,6 +4030,42 @@ async function removePatientAttachment(idx){
   renderPatientAttachmentList();
 }
 
+// Opens a patient file via a short-lived signed URL (needed because the
+// patient-attachments bucket is private for PHI/HIPAA compliance — public URLs
+// return 404 Not Found by design, which is correct and secure).
+async function viewPatientAttachment(idx){
+  const att = _ptAttachBuf[idx];
+  if(!att || !att.path){
+    toast('File reference is missing — try re-uploading.','error');
+    return;
+  }
+  if(!supabase){
+    toast('Cloud storage not connected.','error');
+    return;
+  }
+  try{
+    // Signed URL valid for 60 seconds — enough time to open, not long enough
+    // to pass around. User can click View again anytime to get a fresh one.
+    const { data, error } = await supabase.storage.from('patient-attachments').createSignedUrl(att.path, 60);
+    if(error){
+      console.error('Signed URL error:', error);
+      const msg = (error.message||'').toLowerCase();
+      if(msg.includes('not found')||msg.includes('404')){
+        toast('File not found in cloud storage. It may have been deleted — try re-uploading.','error');
+      } else if(msg.includes('row-level security')||msg.includes('rls')||msg.includes('policy')){
+        showStorageRlsHelp('patient-attachments');
+      } else {
+        toast(`Could not open file: ${error.message}`,'error');
+      }
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  } catch(err){
+    console.error('View exception:', err);
+    toast(`Error opening file: ${err.message}`,'error');
+  }
+}
+
 function renderPatientAttachmentList(){
   const list = $('f-pt-attach-list');
   if(!list) return;
@@ -4043,10 +4079,10 @@ function renderPatientAttachmentList(){
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid var(--g200);border-radius:4px;margin-bottom:6px;font-size:12.5px">
       <span style="font-size:16px">${icon}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><a href="${esc(att.url)}" target="_blank" style="color:var(--navy);text-decoration:none">${esc(att.name)}</a></div>
+        <div style="font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><a href="javascript:void(0)" onclick="viewPatientAttachment(${i})" style="color:var(--navy);text-decoration:none;cursor:pointer">${esc(att.name)}</a></div>
         <div style="font-size:10.5px;color:var(--g500)">${sizeMB} MB · uploaded ${new Date(att.uploaded_at).toLocaleDateString()} by ${esc(displayName(att.uploaded_by||''))}</div>
       </div>
-      <a href="${esc(att.url)}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:11px">View</a>
+      <button class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:11px" onclick="viewPatientAttachment(${i})">View</button>
       <button class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:11px" onclick="removePatientAttachment(${i})">Remove</button>
     </div>`;
   }).join('');
