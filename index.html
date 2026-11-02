@@ -993,6 +993,33 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
         </div>
 
         <!-- Data -->
+        <div class="settings-section" data-role-required="admin">
+          <h3>AI Assistant (Claude Vision)</h3>
+          <div class="settings-row">
+            <div style="flex:1;padding-right:20px">
+              <div class="sr-label">Anthropic API Key</div>
+              <div class="sr-desc" style="line-height:1.55">Powers one-click extraction of patient records from uploaded referral form pages. Get a key free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue)">console.anthropic.com</a> → API Keys → Create Key. <strong>Stored only in this browser</strong> — never synced to Supabase, never visible to staff.</div>
+            </div>
+            <input type="password" style="width:260px;font-family:'SF Mono',Menlo,monospace;font-size:11.5px" id="set-anthropic-key" placeholder="sk-ant-api03-..." autocomplete="off">
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="sr-label">Status</div>
+              <div class="sr-desc" id="anthropic-status">Not configured — paste key above and click Save</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="clearAnthropicKey()">Clear</button>
+              <button class="btn btn-primary btn-sm" onclick="saveAnthropicKey()">Save Key</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div style="flex:1">
+              <div class="sr-label">Approximate cost</div>
+              <div class="sr-desc">Each referral form extraction costs about $0.05–$0.20 in API usage, billed by Anthropic directly to your account. Low volume means ~$2–5/month at your scale.</div>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section">
           <h3>Data Management</h3>
           <div class="settings-row"><div><div class="sr-label">Export Backup</div><div class="sr-desc">Full JSON backup</div></div><button class="btn btn-outline btn-sm" onclick="exportAll()">Download JSON</button></div>
@@ -2000,6 +2027,21 @@ function openModal(type,id=null){
         <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g500)">Amount Requested</div><div style="font-size:13px;color:var(--navy);font-weight:600;margin-top:2px">${p.amount_requested?'$'+parseFloat(p.amount_requested).toLocaleString():'—'}</div></div>
         <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--g500)">Amount Awarded</div><div style="font-size:13px;color:${p.amount_awarded?'var(--green)':'var(--g400)'};font-weight:700;margin-top:2px">${p.amount_awarded?'$'+parseFloat(p.amount_awarded).toLocaleString():'Pending'}</div></div>
       </div>` : ''}
+
+      <!-- AI-POWERED EXTRACTION -->
+      <div style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);border:1px solid #93c5fd;border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <div style="font-size:13.5px;font-weight:700;color:var(--navy);margin-bottom:3px;display:flex;align-items:center;gap:6px">
+              <span style="font-size:16px">⚡</span> Auto-fill from Referral Form
+            </div>
+            <div style="font-size:11.5px;color:#1e40af;line-height:1.55">Upload the referral form pages (PDF or images) — Claude will extract every field and fill the form below. Review before saving.</div>
+          </div>
+          <input type="file" id="f-pt-extract-input" multiple accept="application/pdf,image/*" style="font-size:11.5px;max-width:220px">
+          <button id="f-pt-extract-btn" type="button" class="btn btn-primary btn-sm" onclick="extractReferralForm()" style="white-space:nowrap">📄 Extract</button>
+        </div>
+        <div id="f-pt-extract-status"></div>
+      </div>
 
       <!-- SECTION: Patient Info -->
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin:8px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--g200)">Section 1 · Patient Information</div>
@@ -4066,6 +4108,305 @@ async function viewPatientAttachment(idx){
   }
 }
 
+// =======================================================================
+// AI-POWERED REFERRAL FORM EXTRACTION (Claude Vision API)
+// =======================================================================
+// Reads uploaded referral form pages (PDF or images), extracts every field,
+// and pre-fills the patient modal. User reviews before saving.
+// API key lives in localStorage — never synced to Supabase, never shared.
+
+const _ANTHROPIC_KEY_STORAGE = 'mot_anthropic_api_key';
+const _EXTRACTION_MODEL = 'claude-sonnet-4-5';
+
+function getAnthropicKey(){
+  return localStorage.getItem(_ANTHROPIC_KEY_STORAGE) || '';
+}
+
+function saveAnthropicKey(){
+  const input = document.getElementById('set-anthropic-key');
+  if(!input) return;
+  const key = (input.value||'').trim();
+  if(!key){
+    toast('Paste your API key first','error');
+    return;
+  }
+  if(!key.startsWith('sk-ant-')){
+    if(!confirm('That doesn\'t look like a standard Anthropic key (should start with "sk-ant-"). Save anyway?')) return;
+  }
+  localStorage.setItem(_ANTHROPIC_KEY_STORAGE, key);
+  input.value = '';
+  updateAnthropicKeyStatus();
+  toast('✓ API key saved to this browser','success');
+}
+
+function clearAnthropicKey(){
+  if(!confirm('Remove the saved Anthropic API key from this browser?')) return;
+  localStorage.removeItem(_ANTHROPIC_KEY_STORAGE);
+  const input = document.getElementById('set-anthropic-key');
+  if(input) input.value = '';
+  updateAnthropicKeyStatus();
+  toast('API key cleared','success');
+}
+
+function updateAnthropicKeyStatus(){
+  const el = document.getElementById('anthropic-status');
+  if(!el) return;
+  const key = getAnthropicKey();
+  if(key){
+    const masked = key.length > 14 ? key.slice(0,10) + '…' + key.slice(-4) : '•'.repeat(10);
+    el.innerHTML = `<span style="color:var(--green);font-weight:600">✓ Configured</span> &nbsp;<code style="font-size:11px;color:var(--g500)">${masked}</code>`;
+  } else {
+    el.textContent = 'Not configured — paste key above and click Save';
+  }
+}
+
+function _fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const result = r.result || '';
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    r.onerror = () => reject(new Error('Could not read ' + file.name));
+    r.readAsDataURL(file);
+  });
+}
+
+const _EXTRACTION_PROMPT = `You are extracting data from a completed Minds Over Tumors Hospital Referral & Financial Assistance Application. The form may be printed, handwritten, or mixed. It may contain corrections (crossed-out values replaced with handwritten ones) — always use the CORRECTED value, not the crossed-out one. Checkboxes may be marked with X, ✓, or filled squares.
+
+Return ONLY valid JSON matching this exact schema, with no markdown fences, no commentary, nothing else. Use empty string "" for any field you cannot read confidently — never guess.
+
+{
+  "first_name": "first given name only, e.g. 'Cristopher'",
+  "last_name": "all remaining name parts combined, e.g. 'Gutierrez Zamarripa'",
+  "preferred_name": "if given, else empty",
+  "date_of_birth": "YYYY-MM-DD, else empty",
+  "age": "number as string, else empty",
+  "gender": "exactly one of: Female, Male, Non-binary, Prefer not to say, Other, or empty",
+  "phone": "patient/family phone with dashes, e.g. 941-536-6932",
+  "email": "patient/family email",
+  "address": "street address only, no city/state/zip",
+  "city": "patient city",
+  "state": "2-letter uppercase state code",
+  "zip": "ZIP code",
+  "language": "preferred language and interpreter note, e.g. 'Spanish/Yes'",
+  "diagnosis": "type of brain tumor",
+  "grade": "tumor grade/stage, else empty",
+  "diagnosis_date": "YYYY-MM-DD. If a date is crossed out and corrected, use the CORRECTED date",
+  "diagnosing_physician": "physician name including any parenthetical note",
+  "treatment_status": "exactly one of: Newly diagnosed, In active treatment, Post-treatment / monitoring, Recurrence — pick the one marked",
+  "treatments": "comma-separated list of treatments marked, e.g. 'Surgery, Chemotherapy'",
+  "prognosis": "full brief summary of diagnosis and prognosis, verbatim",
+  "hospital": "hospital/facility name",
+  "department": "department or unit",
+  "hospital_address": "hospital street address only",
+  "hospital_city": "hospital city",
+  "hospital_state": "2-letter uppercase state code",
+  "hospital_phone": "hospital main phone with dashes",
+  "assistance_types": "comma-separated list of assistance types marked, using the EXACT labels from the form (e.g. 'Household / living expenses, Medical equipment')",
+  "need_description": "full description of specific need, verbatim",
+  "estimated_cost": "number only, no $ or commas, e.g. '2500'",
+  "amount_requested": "number only, no $ or commas",
+  "insurance_status": "exactly one of: Insured, Uninsured, Unknown. Map any 'Yes. [insurer]' answer to 'Insured'; map 'No' to 'Uninsured'",
+  "other_aid": "verbatim text about other aid received",
+  "urgency": "exactly one of: Immediate, Within 30 days, Within 90 days, Ongoing — pick the one marked",
+  "referrer_name": "full name of person completing form",
+  "referrer_title": "role or title",
+  "referrer_email": "referrer email",
+  "referrer_phone": "referrer phone with dashes — if you see '=' between digits, treat it as an OCR error for '-'",
+  "referrer_relationship": "exactly one of: Treating physician, Nurse, Social worker, Case manager, Other — pick the one marked",
+  "referrer_date": "YYYY-MM-DD of the referring party signature date, else empty"
+}
+
+Return ONLY the JSON object. No explanation. No markdown.`;
+
+async function extractReferralForm(){
+  const key = getAnthropicKey();
+  const input = document.getElementById('f-pt-extract-input');
+  const btn = document.getElementById('f-pt-extract-btn');
+  const status = document.getElementById('f-pt-extract-status');
+  if(!status) return;
+
+  if(!key){
+    status.innerHTML = `<div style="color:#991b1b;font-size:12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--r);margin-top:10px">
+      ✗ Anthropic API key not configured. <a href="#" onclick="closeModal();switchView('settings');return false" style="color:#991b1b;text-decoration:underline;font-weight:600">Add it in Settings → AI Assistant</a>, then try again.
+    </div>`;
+    return;
+  }
+
+  const files = Array.from(input?.files || []);
+  if(!files.length){
+    status.innerHTML = `<div style="color:#92400e;font-size:12px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--r);margin-top:10px">Select the referral form pages first (click the file picker above).</div>`;
+    return;
+  }
+
+  // Validate file sizes (Anthropic: 32MB total, 5MB per image, 100 pages per PDF)
+  const totalSize = files.reduce((s,f)=>s+f.size, 0);
+  if(totalSize > 30 * 1024 * 1024){
+    status.innerHTML = `<div style="color:#991b1b;font-size:12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--r);margin-top:10px">✗ Files total ${(totalSize/1024/1024).toFixed(1)}MB — too large. Max 30MB combined. Try fewer or lower-resolution pages.</div>`;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Reading…';
+  status.innerHTML = `<div style="color:var(--navy);font-size:12.5px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r);margin-top:10px;display:flex;align-items:center;gap:10px">
+    <div style="width:14px;height:14px;border:2px solid #bfdbfe;border-top-color:#1e40af;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+    <div>Claude is reading ${files.length} page${files.length>1?'s':''}… (usually 10–20 seconds)</div>
+  </div>`;
+
+  try {
+    const content = [];
+    for(const file of files){
+      const data = await _fileToBase64(file);
+      if(file.type === 'application/pdf'){
+        content.push({ type:'document', source:{ type:'base64', media_type:'application/pdf', data } });
+      } else if(file.type.startsWith('image/')){
+        const mt = file.type === 'image/jpg' ? 'image/jpeg' : file.type;
+        content.push({ type:'image', source:{ type:'base64', media_type:mt, data } });
+      } else {
+        throw new Error(`Unsupported file type: ${file.name} (${file.type||'unknown'}). Use PDF or image.`);
+      }
+    }
+    content.push({ type:'text', text: _EXTRACTION_PROMPT });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: _EXTRACTION_MODEL,
+        max_tokens: 4000,
+        messages: [{ role:'user', content }]
+      })
+    });
+
+    if(!resp.ok){
+      const errBody = await resp.json().catch(()=>({}));
+      const msg = errBody?.error?.message || `HTTP ${resp.status}`;
+      if(resp.status === 401) throw new Error('API key rejected — check it in Settings → AI Assistant');
+      if(resp.status === 429) throw new Error('Rate limited — wait a moment and try again');
+      if(resp.status === 400 && /credit|balance/i.test(msg)) throw new Error('Anthropic account has no credit — add some at console.anthropic.com');
+      throw new Error(msg);
+    }
+
+    const result = await resp.json();
+    const rawText = (result.content || []).filter(c=>c.type==='text').map(c=>c.text).join('').trim();
+    if(!rawText) throw new Error('Claude returned an empty response');
+
+    // Strip optional ```json fences just in case
+    const cleaned = rawText.replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+    let extracted;
+    try {
+      extracted = JSON.parse(cleaned);
+    } catch(e){
+      console.error('Parse failed. Raw text:', rawText);
+      throw new Error('Could not parse the response. The form may be unreadable — try clearer/higher-res pages.');
+    }
+
+    const filled = applyExtractedFields(extracted);
+
+    status.innerHTML = `<div style="color:#065f46;font-size:12.5px;padding:12px 14px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:var(--r);margin-top:10px;line-height:1.6">
+      ✓ Extracted <strong>${filled} field${filled!==1?'s':''}</strong>. <strong style="color:#991b1b">Please review every field below before saving</strong> — AI can misread handwriting, dates, and checkboxes.
+    </div>`;
+    btn.disabled = false;
+    btn.textContent = '📄 Extract Another';
+    if(input) input.value = '';
+
+    // Scroll to first filled field so user starts review there
+    const firstField = document.getElementById('f-pt-fname');
+    if(firstField) firstField.scrollIntoView({ behavior:'smooth', block:'center' });
+
+  } catch(err){
+    console.error('Extraction failed:', err);
+    status.innerHTML = `<div style="color:#991b1b;font-size:12.5px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--r);margin-top:10px">
+      ✗ ${esc(err.message||'Extraction failed')}
+    </div>`;
+    btn.disabled = false;
+    btn.textContent = '📄 Try Again';
+  }
+}
+
+function applyExtractedFields(data){
+  if(!data || typeof data !== 'object') return 0;
+  let filled = 0;
+
+  const flash = el => {
+    if(!el) return;
+    const originalBg = el.style.backgroundColor;
+    el.style.transition = 'background-color 0.6s ease';
+    el.style.backgroundColor = '#dbeafe';
+    setTimeout(()=>{ el.style.backgroundColor = originalBg; }, 2200);
+  };
+
+  const setField = (id, raw) => {
+    const value = (raw === null || raw === undefined) ? '' : String(raw).trim();
+    if(!value) return;
+    const el = document.getElementById(id);
+    if(!el) return;
+    // For selects, only set if value matches an option (otherwise leave blank for user)
+    if(el.tagName === 'SELECT'){
+      const match = Array.from(el.options).find(o => o.value.toLowerCase() === value.toLowerCase() || o.textContent.trim().toLowerCase() === value.toLowerCase());
+      if(match){ el.value = match.value; flash(el); filled++; }
+      return;
+    }
+    el.value = value;
+    flash(el);
+    filled++;
+  };
+
+  // Patient info
+  setField('f-pt-fname', data.first_name);
+  setField('f-pt-lname', data.last_name);
+  setField('f-pt-pname', data.preferred_name);
+  setField('f-pt-dob', data.date_of_birth);
+  setField('f-pt-age', data.age);
+  setField('f-pt-gender', data.gender);
+  setField('f-pt-phone', data.phone);
+  setField('f-pt-email', data.email);
+  setField('f-pt-addr', data.address);
+  setField('f-pt-city', data.city);
+  setField('f-pt-state', data.state);
+  setField('f-pt-zip', data.zip);
+  setField('f-pt-lang', data.language);
+  // Diagnosis
+  setField('f-pt-diagnosis', data.diagnosis);
+  setField('f-pt-grade', data.grade);
+  setField('f-pt-diagdate', data.diagnosis_date);
+  setField('f-pt-diagdoc', data.diagnosing_physician);
+  setField('f-pt-tstatus', data.treatment_status);
+  setField('f-pt-treatments', data.treatments);
+  setField('f-pt-prognosis', data.prognosis);
+  // Hospital
+  setField('f-pt-hospital', data.hospital);
+  setField('f-pt-dept', data.department);
+  setField('f-pt-haddr', data.hospital_address);
+  setField('f-pt-hcity', data.hospital_city);
+  setField('f-pt-hstate', data.hospital_state);
+  setField('f-pt-hphone', data.hospital_phone);
+  // Financial
+  setField('f-pt-assistance', data.assistance_types);
+  setField('f-pt-needdesc', data.need_description);
+  setField('f-pt-estcost', data.estimated_cost);
+  setField('f-pt-reqamt', data.amount_requested);
+  setField('f-pt-insurance', data.insurance_status);
+  setField('f-pt-otheraid', data.other_aid);
+  setField('f-pt-urgency', data.urgency);
+  // Referrer
+  setField('f-pt-refname', data.referrer_name);
+  setField('f-pt-reftitle', data.referrer_title);
+  setField('f-pt-refemail', data.referrer_email);
+  setField('f-pt-refphone', data.referrer_phone);
+  setField('f-pt-refrel', data.referrer_relationship);
+  setField('f-pt-refdate', data.referrer_date);
+
+  return filled;
+}
+
 function renderPatientAttachmentList(){
   const list = $('f-pt-attach-list');
   if(!list) return;
@@ -4776,6 +5117,7 @@ function loadSettings(){
   if($('set-sb-key'))$('set-sb-key').value=s.sbKey||'';
   renderRaisedResetStatus();
   renderTeamMembers();
+  updateAnthropicKeyStatus();
 }
 function saveSettings(){
   if(!DB.settings)DB.settings={};
